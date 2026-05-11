@@ -208,7 +208,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <button class="btn btn-primary" onclick="addContact()">+ Add</button>
   </div>
-  <div class="card admin-only">
+  <div class="card">
 
     <!-- Step 1: Active schedule bar (shown once schedule exists) -->
     <div id="rsvp-schedule-bar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:var(--r-sm);background:var(--green-lt);color:var(--green-dk);border:1px solid var(--green-mid);margin-bottom:12px;font-size:13px">
@@ -292,10 +292,10 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         <option value="21:30">9:30 PM</option>
       </select></div>
       </div>
-      <button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button>
+      <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
 
-    <!-- Step 2: Send invite (shown once schedule exists) -->
+    <!-- Step 2: Send invite (shown once schedule exists, admin only) -->
     <div id="invite-section" style="display:none">
       <div class="card-title">Step 2 — Send invite</div>
       <div id="invite-when-display" style="font-size:13px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border)">
