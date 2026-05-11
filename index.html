@@ -914,24 +914,25 @@ async function deleteOldSchedules(){
   alert(old.length + ' past schedule' + (old.length!==1?'s':'') + ' deleted.');
 }
 
-// Handle ?rsvp= URL parameter — auto-open the right schedule for RSVP
-function checkRsvpParam(){
-  var params = new URLSearchParams(window.location.search);
-  var rsvpId = params.get('rsvp');
-  if(!rsvpId) return false;
-  var s = schedules.find(function(x){return String(x.id)===String(rsvpId);});
-  if(s){
-    schedule = s;
-    // Switch to contacts tab so they can RSVP
-    var contactsBtn = document.querySelector('[onclick*="contacts"]');
-    showTab('contacts', contactsBtn);
-    renderContacts();
-    return true;
-  }
-  return false;
-}
 
-async function init(){const schedBtn=document.querySelector('[onclick*="schedule"]');showTab('schedule',schedBtn);await loadAll();setRsvpQuickSunday();buildInviteMsg();}
+async function init(){
+  const schedBtn=document.querySelector('[onclick*="schedule"]');
+  showTab('schedule',schedBtn);
+  await loadAll();
+  buildInviteMsg();
+  // Handle ?rsvp= link - must run after loadAll so schedules are populated
+  const params=new URLSearchParams(window.location.search);
+  const rsvpId=params.get('rsvp');
+  if(rsvpId){
+    const s=schedules.find(function(x){return String(x.id)===String(rsvpId);});
+    if(s){
+      schedule=s;
+      const contactsBtn=document.querySelector('[onclick*="contacts"]');
+      showTab('contacts',contactsBtn);
+      renderContacts();
+    }
+  }
+}
 init();
 </script>
 <!-- Calendar subscription modal -->
