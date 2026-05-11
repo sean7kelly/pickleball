@@ -143,12 +143,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div class="card-title" style="margin-bottom:0">Schedules</div>
       <div style="display:flex;gap:6px">
         <button class="btn btn-sm btn-teal" onclick="showCalendarInfo()" title="Subscribe to calendar">📆 Calendar</button>
-        <button class="btn btn-primary btn-sm" onclick="createSchedule()">+ New schedule</button>
+        <div class="admin-only"><button class="btn btn-primary btn-sm" onclick="createSchedule()">+ New schedule</button></div>
       </div>
     </div>
     <div id="sched-list"></div>
   </div>
-  <div class="card no-print" id="sched-controls" style="display:none">
+  <div class="card no-print admin-only" id="sched-controls" style="display:none">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-sm" onclick="backToList()">← All schedules</button>
       <div id="sched-name-display" style="font-size:15px;font-weight:700;flex:1"></div>
@@ -190,6 +190,10 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <div id="sched-alert" style="margin-top:10px"></div>
   </div>
+  <div id="sched-back-bar" style="display:none;margin-bottom:8px">
+    <button class="btn btn-sm" onclick="backToList()">← All schedules</button>
+    <span id="sched-view-name" style="font-size:14px;font-weight:600;margin-left:8px"></span>
+  </div>
   <div id="sched-out"></div>
 </div>
 <!-- CONTACTS TAB -->
@@ -216,82 +220,82 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <button class="btn btn-xs btn-teal" onclick="switchRsvpSchedule()" style="margin-left:auto">Switch</button>
     </div>
 
-    <!-- Step 1: Create RSVP tracking (shown when no schedule) -->
+    <!-- Step 1: Create RSVP tracking -->
+    <div class="card-title">📅 Send invite &amp; track RSVPs</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
+      <div class="fg"><label>Date</label><input type="date" id="invite-date" style="width:155px" onchange="onInviteDateChange()" /></div>
+      <div class="fg"><label>Start time</label><select id="invite-time" style="width:125px;height:36px" onchange="buildInviteMsg()">
+        <option value="">-- Time --</option>
+        <option value="06:00">6:00 AM</option>
+        <option value="06:30">6:30 AM</option>
+        <option value="07:00">7:00 AM</option>
+        <option value="07:30">7:30 AM</option>
+        <option value="08:00">8:00 AM</option>
+        <option value="08:30">8:30 AM</option>
+        <option value="09:00">9:00 AM</option>
+        <option value="09:30">9:30 AM</option>
+        <option value="10:00">10:00 AM</option>
+        <option value="10:30">10:30 AM</option>
+        <option value="11:00">11:00 AM</option>
+        <option value="11:30">11:30 AM</option>
+        <option value="12:00">12:00 PM</option>
+        <option value="12:30">12:30 PM</option>
+        <option value="13:00">1:00 PM</option>
+        <option value="13:30">1:30 PM</option>
+        <option value="14:00">2:00 PM</option>
+        <option value="14:30">2:30 PM</option>
+        <option value="15:00">3:00 PM</option>
+        <option value="15:30">3:30 PM</option>
+        <option value="16:00">4:00 PM</option>
+        <option value="16:30">4:30 PM</option>
+        <option value="17:00">5:00 PM</option>
+        <option value="17:30">5:30 PM</option>
+        <option value="18:00">6:00 PM</option>
+        <option value="18:30">6:30 PM</option>
+        <option value="19:00">7:00 PM</option>
+        <option value="19:30">7:30 PM</option>
+        <option value="20:00">8:00 PM</option>
+        <option value="20:30">8:30 PM</option>
+        <option value="21:00">9:00 PM</option>
+        <option value="21:30">9:30 PM</option>
+      </select></div>
+      <div class="fg"><label>End time</label><select id="invite-end-time" style="width:125px;height:36px" onchange="buildInviteMsg()">
+        <option value="">-- Time --</option>
+        <option value="06:00">6:00 AM</option>
+        <option value="06:30">6:30 AM</option>
+        <option value="07:00">7:00 AM</option>
+        <option value="07:30">7:30 AM</option>
+        <option value="08:00">8:00 AM</option>
+        <option value="08:30">8:30 AM</option>
+        <option value="09:00">9:00 AM</option>
+        <option value="09:30">9:30 AM</option>
+        <option value="10:00">10:00 AM</option>
+        <option value="10:30">10:30 AM</option>
+        <option value="11:00">11:00 AM</option>
+        <option value="11:30">11:30 AM</option>
+        <option value="12:00">12:00 PM</option>
+        <option value="12:30">12:30 PM</option>
+        <option value="13:00">1:00 PM</option>
+        <option value="13:30">1:30 PM</option>
+        <option value="14:00">2:00 PM</option>
+        <option value="14:30">2:30 PM</option>
+        <option value="15:00">3:00 PM</option>
+        <option value="15:30">3:30 PM</option>
+        <option value="16:00">4:00 PM</option>
+        <option value="16:30">4:30 PM</option>
+        <option value="17:00">5:00 PM</option>
+        <option value="17:30">5:30 PM</option>
+        <option value="18:00">6:00 PM</option>
+        <option value="18:30">6:30 PM</option>
+        <option value="19:00">7:00 PM</option>
+        <option value="19:30">7:30 PM</option>
+        <option value="20:00">8:00 PM</option>
+        <option value="20:30">8:30 PM</option>
+        <option value="21:00">9:00 PM</option>
+        <option value="21:30">9:30 PM</option>
+      </select></div>
+    </div>
     <div id="rsvp-no-schedule-bar">
-      <div class="card-title">Step 1 — Create RSVP tracking</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
-        <div class="fg"><label>Date</label><input type="date" id="invite-date" style="width:155px" onchange="onInviteDateChange()" /></div>
-        <div class="fg"><label>Start time</label><select id="invite-time" style="width:125px;height:36px" onchange="buildInviteMsg()">
-        <option value="">-- Time --</option>
-        <option value="06:00">6:00 AM</option>
-        <option value="06:30">6:30 AM</option>
-        <option value="07:00">7:00 AM</option>
-        <option value="07:30">7:30 AM</option>
-        <option value="08:00">8:00 AM</option>
-        <option value="08:30">8:30 AM</option>
-        <option value="09:00">9:00 AM</option>
-        <option value="09:30">9:30 AM</option>
-        <option value="10:00">10:00 AM</option>
-        <option value="10:30">10:30 AM</option>
-        <option value="11:00">11:00 AM</option>
-        <option value="11:30">11:30 AM</option>
-        <option value="12:00">12:00 PM</option>
-        <option value="12:30">12:30 PM</option>
-        <option value="13:00">1:00 PM</option>
-        <option value="13:30">1:30 PM</option>
-        <option value="14:00">2:00 PM</option>
-        <option value="14:30">2:30 PM</option>
-        <option value="15:00">3:00 PM</option>
-        <option value="15:30">3:30 PM</option>
-        <option value="16:00">4:00 PM</option>
-        <option value="16:30">4:30 PM</option>
-        <option value="17:00">5:00 PM</option>
-        <option value="17:30">5:30 PM</option>
-        <option value="18:00">6:00 PM</option>
-        <option value="18:30">6:30 PM</option>
-        <option value="19:00">7:00 PM</option>
-        <option value="19:30">7:30 PM</option>
-        <option value="20:00">8:00 PM</option>
-        <option value="20:30">8:30 PM</option>
-        <option value="21:00">9:00 PM</option>
-        <option value="21:30">9:30 PM</option>
-      </select></div>
-        <div class="fg"><label>End time</label><select id="invite-end-time" style="width:125px;height:36px" onchange="buildInviteMsg()">
-        <option value="">-- Time --</option>
-        <option value="06:00">6:00 AM</option>
-        <option value="06:30">6:30 AM</option>
-        <option value="07:00">7:00 AM</option>
-        <option value="07:30">7:30 AM</option>
-        <option value="08:00">8:00 AM</option>
-        <option value="08:30">8:30 AM</option>
-        <option value="09:00">9:00 AM</option>
-        <option value="09:30">9:30 AM</option>
-        <option value="10:00">10:00 AM</option>
-        <option value="10:30">10:30 AM</option>
-        <option value="11:00">11:00 AM</option>
-        <option value="11:30">11:30 AM</option>
-        <option value="12:00">12:00 PM</option>
-        <option value="12:30">12:30 PM</option>
-        <option value="13:00">1:00 PM</option>
-        <option value="13:30">1:30 PM</option>
-        <option value="14:00">2:00 PM</option>
-        <option value="14:30">2:30 PM</option>
-        <option value="15:00">3:00 PM</option>
-        <option value="15:30">3:30 PM</option>
-        <option value="16:00">4:00 PM</option>
-        <option value="16:30">4:30 PM</option>
-        <option value="17:00">5:00 PM</option>
-        <option value="17:30">5:30 PM</option>
-        <option value="18:00">6:00 PM</option>
-        <option value="18:30">6:30 PM</option>
-        <option value="19:00">7:00 PM</option>
-        <option value="19:30">7:30 PM</option>
-        <option value="20:00">8:00 PM</option>
-        <option value="20:30">8:30 PM</option>
-        <option value="21:00">9:00 PM</option>
-        <option value="21:30">9:30 PM</option>
-      </select></div>
-      </div>
       <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
 
@@ -702,7 +706,14 @@ function renderScheduleList(){
   listEl.innerHTML=schedules.map(s=>{const mc=s.matches?s.matches.reduce((t,r)=>t+(r.matches||[]).length,0):0;const meta=s.generated?`${s.date} · ${s.rounds||10} rounds · ${mc} matches`:`${s.rounds||10} rounds · not generated yet`;return`<div class="sched-item" onclick="openSchedule(${s.id})"><div><div class="sched-item-name">${s.name}</div><div class="sched-item-meta">${meta}</div></div><span style="color:var(--text2);font-size:18px">›</span></div>`;}).join('');
 }
 function backToList(){schedule=null;document.getElementById('sched-out').innerHTML='';renderScheduleList();renderToggles();}
-function openSchedule(id){schedule=schedules.find(s=>s.id===id)||null;if(!schedule)return;renderScheduleList();renderToggles();renderSchedule();}
+function openSchedule(id){
+  schedule=schedules.find(s=>s.id===id)||null;
+  if(!schedule)return;
+  // Show controls only if admin, otherwise just show the schedule output
+  renderScheduleList();
+  if(adminUnlocked){renderToggles();}
+  renderSchedule();
+}
 async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
 async function deleteSchedule(){if(!schedule)return;if(!confirm(`Delete "${schedule.name}"?`))return;const id=schedule.id;schedules=schedules.filter(s=>s.id!==id);schedule=null;renderScheduleList();renderToggles();document.getElementById('sched-out').innerHTML='';try{setSyncing();await api('schedules/delete',{id});setSynced();}catch(e){setSyncErr();}}
 async function renameSchedule(){if(!schedule)return;const name=document.getElementById('sched-name-input').value.trim();if(!name)return;schedule.name=name;document.getElementById('sched-name-display').textContent=name;try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
@@ -777,9 +788,14 @@ const typeLabel={mixed:'Mixed doubles',mens:"Men's doubles",womens:"Women's doub
 const typeBadge={mixed:'bg-green',mens:'bg-blue',womens:'bg-pink'};
 function renderSchedule(){
   const out=document.getElementById('sched-out');
-  if(!schedule||!schedule.generated||!schedule.matches.length){out.innerHTML='<div class="empty"><div class="ei">📅</div>Select players and Generate — or mark people In from Contacts.</div>';return;}
+  const backBar=document.getElementById('sched-back-bar');
+  const viewName=document.getElementById('sched-view-name');
+  if(schedule&&backBar){backBar.style.display='flex';backBar.style.alignItems='center';}
+  if(!schedule&&backBar){backBar.style.display='none';}
+  if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
+  if(!schedule||!schedule.generated||!schedule.matches.length){out.innerHTML='<div class="empty"><div class="ei">📅</div>'+(!schedule?'Select a schedule to view it.':'Select players and Generate — or mark people In from Contacts.')+'</div>';return;}
   const s=hydrateSchedule(schedule);
-  out.innerHTML=s.matches.map(round=>`<div class="round-block"><div class="round-lbl">Round ${round.round}</div>${round.matches.map((m,mi)=>`<div class="mrow ${m.recorded?'recorded':''}" id="mr-${m.id}"><div class="mtop"><span class="clbl">Court ${mi+1}</span><span class="badge ${typeBadge[m.type]}">${typeLabel[m.type]}</span></div><div class="tgrid-m"><div>${m.team1.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div><div class="vslbl">vs</div><div class="tr">${m.team2.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div></div><div class="score-row no-print"><input type="number" class="sin" id="s1-${m.id}" value="${m.score1}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',this.value,document.getElementById('s2-${m.id}').value)"/><span class="ssep">–</span><input type="number" class="sin" id="s2-${m.id}" value="${m.score2}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',document.getElementById('s1-${m.id}').value,this.value)"/><button class="btn btn-sm ${m.recorded?'btn-teal':'btn-primary'}" onclick="recordResult('${m.id}')">${m.recorded?'✓ Saved':'✔ Record'}</button></div></div>`).join('')}${round.sitters?.length?`<div class="sitout">⏸ Sitting out: ${round.sitters.map(p=>p.name).join(', ')}</div>`:''}</div>`).join('');
+  out.innerHTML=s.matches.map(round=>`<div class="round-block"><div class="round-lbl">Round ${round.round}</div>${round.matches.map((m,mi)=>`<div class="mrow ${m.recorded?'recorded':''}" id="mr-${m.id}"><div class="mtop"><span class="clbl">Court ${mi+1}</span><span class="badge ${typeBadge[m.type]}">${typeLabel[m.type]}</span></div><div class="tgrid-m"><div>${m.team1.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div><div class="vslbl">vs</div><div class="tr">${m.team2.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div></div><div class="score-row no-print" style="display:${adminUnlocked?'flex':'none'}"><input type="number" class="sin" id="s1-${m.id}" value="${m.score1}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',this.value,document.getElementById('s2-${m.id}').value)"/><span class="ssep">–</span><input type="number" class="sin" id="s2-${m.id}" value="${m.score2}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',document.getElementById('s1-${m.id}').value,this.value)"/><button class="btn btn-sm ${m.recorded?'btn-teal':'btn-primary'}" onclick="recordResult('${m.id}')">${m.recorded?'✓ Saved':'✔ Record'}</button></div></div>`).join('')}${round.sitters?.length?`<div class="sitout">⏸ Sitting out: ${round.sitters.map(p=>p.name).join(', ')}</div>`:''}</div>`).join('');
 }
 async function saveScore(mid,s1,s2){for(const rnd of(schedule?schedule.matches:[])){const m=rnd.matches.find(m=>m.id===mid);if(m){m.score1=s1;m.score2=s2;}}try{if(schedule)await api('schedules/save',slimSchedule(schedule));}catch(e){}}
 async function recordResult(mid){
