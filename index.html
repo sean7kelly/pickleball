@@ -924,7 +924,9 @@ async function init(){
   const params=new URLSearchParams(window.location.search);
   const rsvpId=params.get('rsvp');
   if(rsvpId){
-    console.log('RSVP param found:', rsvpId, 'schedules loaded:', schedules.length);
+    console.log('RSVP param found:', rsvpId, 'type:', typeof rsvpId);
+    console.log('Schedules loaded:', schedules.length);
+    schedules.forEach(function(x){ console.log('  Schedule id:', x.id, 'type:', typeof x.id, 'match:', String(x.id)===String(rsvpId)); });
     const s=schedules.find(function(x){return String(x.id)===String(rsvpId);});
     console.log('Schedule found:', s ? s.name : 'NOT FOUND');
     if(s){
