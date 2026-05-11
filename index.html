@@ -665,13 +665,18 @@ async function createScheduleFromContacts(){
     const s=newScheduleObj(name);s.date=dateStr;s.rawDate=dateVal;
     try{
       setSyncing();
+      console.log('Saving schedule:', slimSchedule(s));
       const saved=await api('schedules/save',slimSchedule(s));
+      console.log('Save response:', saved);
       if(saved&&saved[0]&&saved[0].id){
         s.id=saved[0].id;
         console.log('Schedule saved with id:', s.id);
       }
       setSynced();
-    }catch(e){setSyncErr();}
+    }catch(e){
+      setSyncErr();
+      console.error('Save error:', e);
+    }
     schedules.unshift(s);schedule=s;
   }
   // Explicitly update UI
