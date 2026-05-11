@@ -924,10 +924,12 @@ async function init(){
   const params=new URLSearchParams(window.location.search);
   const rsvpId=params.get('rsvp');
   if(rsvpId){
+    console.log('RSVP param found:', rsvpId, 'schedules loaded:', schedules.length);
     const s=schedules.find(function(x){return String(x.id)===String(rsvpId);});
+    console.log('Schedule found:', s ? s.name : 'NOT FOUND');
     if(s){
       schedule=s;
-      const contactsBtn=document.querySelector('[onclick*="contacts"]');
+      const contactsBtn=document.querySelector('[onclick*=\'contacts\']');
       showTab('contacts',contactsBtn);
       renderContacts();
     }
