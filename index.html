@@ -209,35 +209,40 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <button class="btn btn-primary" onclick="addContact()">+ Add</button>
   </div>
   <div class="card admin-only">
-    <!-- Active schedule bar -->
-    <div id="rsvp-schedule-bar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:var(--r-sm);background:var(--green-lt);color:var(--green-dk);border:1px solid var(--green-mid);margin-bottom:10px;font-size:13px">
-      <span>📅 <strong id="rsvp-schedule-name"></strong></span>
+
+    <!-- Step 1: Active schedule bar (shown once schedule exists) -->
+    <div id="rsvp-schedule-bar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:var(--r-sm);background:var(--green-lt);color:var(--green-dk);border:1px solid var(--green-mid);margin-bottom:12px;font-size:13px">
+      <span>📅 Tracking RSVPs for: <strong id="rsvp-schedule-name"></strong></span>
       <button class="btn btn-xs btn-teal" onclick="switchRsvpSchedule()" style="margin-left:auto">Switch</button>
     </div>
 
-    <!-- Unified date/time + invite + RSVP -->
-    <div class="card-title" id="invite-card-title">Send invite &amp; track RSVPs</div>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end">
-      <div class="fg"><label>Date</label><input type="date" id="invite-date" style="width:155px" onchange="onInviteDateChange()" /></div>
-      <div class="fg"><label>Start time</label><input type="time" id="invite-time" style="width:125px" onchange="buildInviteMsg()" /></div>
-      <div class="fg"><label>End time</label><input type="time" id="invite-end-time" style="width:125px" onchange="buildInviteMsg()" /></div>
+    <!-- Step 1: Create RSVP tracking (shown when no schedule) -->
+    <div id="rsvp-no-schedule-bar">
+      <div class="card-title">Step 1 — Create RSVP tracking</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
+        <div class="fg"><label>Date</label><input type="date" id="invite-date" style="width:155px" onchange="onInviteDateChange()" /></div>
+        <div class="fg"><label>Start time</label><input type="time" id="invite-time" style="width:125px" onchange="buildInviteMsg()" /></div>
+        <div class="fg"><label>End time</label><input type="time" id="invite-end-time" style="width:125px" onchange="buildInviteMsg()" /></div>
+      </div>
+      <button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button>
     </div>
 
-    <div id="no-schedule-warn" style="font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:7px 10px;margin-bottom:10px;display:none">
-      ⚠️ Pick a date above to create a schedule and enable RSVPs.
-    </div>
-
-    <div id="invite-section">
+    <!-- Step 2: Send invite (shown once schedule exists) -->
+    <div id="invite-section" style="display:none">
+      <div class="card-title">Step 2 — Send invite</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
+        <div class="fg"><label>Start time</label><input type="time" id="invite-time-2" style="width:125px" onchange="buildInviteMsg()" /></div>
+        <div class="fg"><label>End time</label><input type="time" id="invite-end-time-2" style="width:125px" onchange="buildInviteMsg()" /></div>
+      </div>
       <div class="fg" style="max-width:500px;margin-bottom:12px">
         <label>Message</label>
         <textarea id="invite-msg" rows="5" style="height:auto;padding:8px 10px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <button class="btn btn-primary" onclick="copyNumbers()">📋 Copy numbers &amp; message</button>
         <span id="contact-count" style="font-size:12px;color:var(--text2)"></span>
       </div>
-      <div id="rsvp-link-section" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div id="rsvp-link-section" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">📎 RSVP link</div>
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:8px 10px;font-family:monospace;font-size:12px;word-break:break-all;border:1px solid var(--border);margin-bottom:8px" id="rsvp-share-url"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -248,8 +253,6 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       </div>
     </div>
 
-    <!-- rsvp-no-schedule-bar kept for JS references but hidden -->
-    <div id="rsvp-no-schedule-bar" style="display:none"></div>
   </div>
 
   <div style="margin-bottom:8px">
@@ -499,22 +502,22 @@ function renderContacts(){
   if(schedule){
     schedBar.style.display='flex';
     noSchedBar.style.display='none';
+    document.getElementById('invite-section').style.display='block';
     document.getElementById('rsvp-schedule-name').textContent=schedule.name+(schedule.date?' · '+schedule.date:'');
-    document.getElementById('no-schedule-warn').style.display='none';
-    // Sync invite date to schedule date if possible
-    if(schedule.date){
-      var invDate=document.getElementById('invite-date');
-      if(invDate&&!invDate.value){
-        // Try to parse schedule.date back to yyyy-mm-dd
-        try{var d=new Date(schedule.date);if(!isNaN(d)){var mm=String(d.getMonth()+1).padStart(2,'0');var dd=String(d.getDate()).padStart(2,'0');invDate.value=d.getFullYear()+'-'+mm+'-'+dd;buildInviteMsg();}}catch(e){}
-      }
-    }
+    // Sync times from step 1 to step 2
+    var t1=document.getElementById('invite-time');
+    var t2=document.getElementById('invite-time-2');
+    var e1=document.getElementById('invite-end-time');
+    var e2=document.getElementById('invite-end-time-2');
+    if(t1&&t2&&t1.value&&!t2.value) t2.value=t1.value;
+    if(e1&&e2&&e1.value&&!e2.value) e2.value=e1.value;
+    buildInviteMsg();
+    updateRsvpLinkSection();
   } else {
     schedBar.style.display='none';
     noSchedBar.style.display='block';
-    document.getElementById('no-schedule-warn').style.display='none';
+    document.getElementById('invite-section').style.display='none';
   }
-  updateRsvpLinkSection();
   const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
   const sorted=[...contacts].sort((a,b)=>{const ai=a.invited!==false?0:1,bi=b.invited!==false?0:1;if(ai!==bi)return ai-bi;const o={yes:0,null:1,no:2};return(o[rsvpMap[String(a.id)]]??1)-(o[rsvpMap[String(b.id)]]??1);});
@@ -537,10 +540,10 @@ function renderContacts(){
             </div>
           </div>
         </div>
-        <div style="display:none">
+        ${adminUnlocked?`<div style="display:flex;gap:4px">
           <button class="btn btn-xs btn-teal" onclick="openEditContact(${c.id})" title="Edit">✏️</button>
           <button class="btn btn-xs btn-danger" onclick="removeContact(${c.id})" title="Remove">✕</button>
-        </div>
+        </div>`:''}
       </div>
       ${adminUnlocked&&c.phone?`<div style="font-size:13px;color:var(--text2);margin:4px 0 4px"><a href="sms:${digitsOnly(c.phone)}" style="color:var(--green);text-decoration:none">📱 ${c.phone}</a></div>`:''}
       <div style="margin-bottom:6px">
@@ -551,10 +554,10 @@ function renderContacts(){
       </div>
       ${c.is_player?`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap">
         <div><div class="dupr-val">${c.dupr.toFixed(2)}</div><div style="font-size:11px;color:var(--text2)">${updStr||'DUPR not set'} · ${c.wins||0}W ${c.losses||0}L</div></div>
-        <div style="display:none">
-          ${c.duprUrl?`<a href="${c.duprUrl}" target="_blank" rel="noopener" class="btn btn-xs btn-teal">View ↗</a>`:''}
+        ${adminUnlocked?`<div style="display:flex;gap:4px">
+          ${c.duprUrl?'<a href="'+c.duprUrl+'" target="_blank" rel="noopener" class="btn btn-xs btn-teal">View ↗</a>':''}
           <button class="btn btn-xs btn-primary" onclick="promptRating(${c.id})">Update DUPR</button>
-        </div>
+        </div>`:''}
       </div>`:''}
       <div style="display:flex;gap:5px">
         <button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
@@ -752,7 +755,7 @@ function onInviteDateChange(){
 function buildInviteMsg(){
   var invDateEl=document.getElementById('invite-date');
   var dateVal=invDateEl?invDateEl.value:'';
-  const timeVal=document.getElementById('invite-time').value;const endVal=document.getElementById('invite-end-time').value;let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : window.location.origin;
+  var timeVal=timeEl?timeEl.value:'';var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : window.location.origin;
   document.getElementById('invite-msg').value = 'Hey everyone! Pickleball ' + when + ' — who\'s in?\n\nTap here to RSVP: ' + rsvpUrl + '\n\nSee you there! 🏓';
 }
 function setNextDay(day){const t=new Date();let diff=day-t.getDay();if(diff<=0)diff+=7;const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);buildInviteMsg();}
