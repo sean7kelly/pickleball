@@ -651,19 +651,22 @@ async function createScheduleFromContacts(){
   const d=new Date(dateVal+'T12:00:00');
   const dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const name=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-  console.log('Looking for date:', dateStr);
-  console.log('Available dates:', schedules.map(function(s){return s.date;}));
-  const existing=schedules.find(function(s){return s.date===dateStr;});
+  console.log('Looking for date:', dateStr, 'raw:', dateVal);
+  console.log('Available schedules:', schedules.map(function(s){return {id:s.id,date:s.date};}));
+  // Match by raw date value stored in schedule, or by formatted date string
+  const existing=schedules.find(function(s){return s.date===dateStr||s.rawDate===dateVal;});
   if(existing){
     console.log('Found existing schedule:', existing.id);
     schedule=existing;
   } else {
-    const s=newScheduleObj(name);s.date=dateStr;
+    const s=newScheduleObj(name);s.date=dateStr;s.rawDate=dateVal;
     try{
       setSyncing();
       const saved=await api('schedules/save',slimSchedule(s));
-      // Use the saved record from DB to ensure we have the correct ID
-      if(saved&&saved[0]){s.id=saved[0].id;}
+      if(saved&&saved[0]&&saved[0].id){
+        s.id=saved[0].id;
+        console.log('Schedule saved with id:', s.id);
+      }
       setSynced();
     }catch(e){setSyncErr();}
     schedules.unshift(s);schedule=s;
@@ -965,13 +968,4 @@ init();
     <div style="font-size:12px;color:var(--text2);line-height:1.7">
       <strong>iPhone/iPad:</strong> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste URL<br>
       <strong>Google Calendar:</strong> Other calendars → + → From URL → paste URL<br>
-      <strong>Outlook:</strong> Add calendar → Subscribe from web → paste URL
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeCal()">Close</button>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+      <strong>Outlook:</strong> Add calendar → Subscribe from 
