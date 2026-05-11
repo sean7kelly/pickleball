@@ -221,8 +221,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div class="card-title">Step 1 — Create RSVP tracking</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
         <div class="fg"><label>Date</label><input type="date" id="invite-date" style="width:155px" onchange="onInviteDateChange()" /></div>
-        <div class="fg"><label>Start time</label><input type="time" id="invite-time" style="width:125px" onchange="buildInviteMsg()" /></div>
-        <div class="fg"><label>End time</label><input type="time" id="invite-end-time" style="width:125px" onchange="buildInviteMsg()" /></div>
+        <div class="fg"><label>Start time</label><input type="time" id="invite-time" style="width:125px" step="1800" onchange="buildInviteMsg()" /></div>
+        <div class="fg"><label>End time</label><input type="time" id="invite-end-time" style="width:125px" step="1800" onchange="buildInviteMsg()" /></div>
       </div>
       <button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button>
     </div>
@@ -230,9 +230,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <!-- Step 2: Send invite (shown once schedule exists) -->
     <div id="invite-section" style="display:none">
       <div class="card-title">Step 2 — Send invite</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end">
-        <div class="fg"><label>Start time</label><input type="time" id="invite-time-2" style="width:125px" onchange="buildInviteMsg()" /></div>
-        <div class="fg"><label>End time</label><input type="time" id="invite-end-time-2" style="width:125px" onchange="buildInviteMsg()" /></div>
+      <div id="invite-when-display" style="font-size:13px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border)">
+        📅 <span id="invite-when-text"></span>
       </div>
       <div class="fg" style="max-width:500px;margin-bottom:12px">
         <label>Message</label>
@@ -503,13 +502,6 @@ function renderContacts(){
     noSchedBar.style.display='none';
     document.getElementById('invite-section').style.display='block';
     document.getElementById('rsvp-schedule-name').textContent=schedule.name+(schedule.date?' · '+schedule.date:'');
-    // Sync times from step 1 to step 2
-    var t1=document.getElementById('invite-time');
-    var t2=document.getElementById('invite-time-2');
-    var e1=document.getElementById('invite-end-time');
-    var e2=document.getElementById('invite-end-time-2');
-    if(t1&&t2&&t1.value&&!t2.value) t2.value=t1.value;
-    if(e1&&e2&&e1.value&&!e2.value) e2.value=e1.value;
     buildInviteMsg();
     updateRsvpLinkSection();
   } else {
@@ -760,8 +752,14 @@ function onInviteDateChange(){
 function buildInviteMsg(){
   var invDateEl=document.getElementById('invite-date');
   var dateVal=invDateEl?invDateEl.value:'';
-  var timeVal=timeEl?timeEl.value:'';var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : window.location.origin;
-  document.getElementById('invite-msg').value = 'Hey everyone! Pickleball ' + when + ' — who\'s in?\n\nTap here to RSVP: ' + rsvpUrl + '\n\nSee you there! 🏓';
+  var timeVal=timeEl?timeEl.value:'';var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : '';
+  var msg = 'Hey everyone! Pickleball ' + when + ' — who\'s in?';
+  if(rsvpUrl) msg += '\n\nTap here to RSVP:\n' + rsvpUrl;
+  msg += '\n\nSee you there! 🏓';
+  document.getElementById('invite-msg').value = msg;
+  // Update the when-display in Step 2
+  var whenEl = document.getElementById('invite-when-text');
+  if(whenEl) whenEl.textContent = when || 'No date/time set';
 }
 function setNextDay(day){const t=new Date();let diff=day-t.getDay();if(diff<=0)diff+=7;const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);buildInviteMsg();}
 function setNextSunday(){setNextDay(0);}function setNextMonday(){setNextDay(1);}
