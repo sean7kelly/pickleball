@@ -947,7 +947,20 @@ async function init(){
     console.log('RSVP param found:', rsvpId, 'type:', typeof rsvpId);
     console.log('Schedules loaded:', schedules.length);
     schedules.forEach(function(x){ console.log('  Schedule id:', x.id, 'type:', typeof x.id, 'match:', String(x.id)===String(rsvpId)); });
-    const s=schedules.find(function(x){return String(x.id)===String(rsvpId)||String(x.rawDate)===String(rsvpId)||String(x.date)===String(rsvpId);});
+    // rsvpId could be: numeric ID, yyyy-mm-dd date, or formatted date string
+    var rsvpDateFormatted = '';
+    if(rsvpId && rsvpId.match(/^\d{4}-\d{2}-\d{2}$/)){
+      try{
+        var rd=new Date(rsvpId+'T12:00:00');
+        rsvpDateFormatted=rd.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+      }catch(e){}
+    }
+    console.log('Looking for formatted date:', rsvpDateFormatted);
+    const s=schedules.find(function(x){
+      return String(x.id)===String(rsvpId) ||
+             String(x.rawDate)===String(rsvpId) ||
+             (rsvpDateFormatted && x.date===rsvpDateFormatted);
+    });
     console.log('Schedule found:', s ? s.name : 'NOT FOUND');
     if(s){
       schedule=s;
