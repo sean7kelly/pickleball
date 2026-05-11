@@ -424,7 +424,7 @@ function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.da
 function slimSchedule(s){
   if(!s)return null;
   return {
-    id:s.id, name:s.name||'Sunday Schedule', date:s.date||'',
+    id:s.id, name:s.name||'Sunday Schedule', date:s.date||'', raw_date:s.rawDate||'',
     rounds:s.rounds||10, mode:s.mode||'auto',
     generated:s.generated||false, selected:s.selected||[], rsvps:s.rsvps||{},
     matches:(s.matches||[]).map(function(round){
@@ -657,6 +657,8 @@ async function createScheduleFromContacts(){
   const existing=schedules.find(function(s){return s.date===dateStr||s.rawDate===dateVal;});
   if(existing){
     console.log('Found existing schedule:', existing.id);
+    // Store rawDate on existing schedule so link works
+    if(!existing.rawDate) existing.rawDate=dateVal;
     schedule=existing;
   } else {
     const s=newScheduleObj(name);s.date=dateStr;s.rawDate=dateVal;
@@ -837,7 +839,8 @@ function buildInviteMsg(){
   var timeEl=document.getElementById('invite-time');
   var endEl=document.getElementById('invite-end-time');
   var timeVal=timeEl?timeEl.value:'';
-  var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : '';
+  var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpKey = schedule ? (schedule.rawDate || schedule.id) : null;
+  var rsvpUrl = rsvpKey ? (window.location.origin + '/?rsvp=' + rsvpKey) : '';
   var msg = 'Hey everyone! Pickleball ' + when + ' — who\'s in?';
   if(rsvpUrl) msg += '\n\nTap here to RSVP:\n' + rsvpUrl;
   msg += '\n\nSee you there! 🏓';
@@ -887,20 +890,23 @@ function updateRsvpLinkSection(){
   if(!section) return;
   if(!schedule){section.style.display='none';return;}
   section.style.display='block';
-  var url = window.location.origin + '/?rsvp=' + schedule.id;
+  var key = schedule.rawDate || schedule.id;
+  var url = window.location.origin + '/?rsvp=' + key;
   document.getElementById('rsvp-share-url').textContent = url;
 }
 
 function copyRsvpLink(){
   if(!schedule){alert('No schedule selected.');return;}
-  var url = window.location.origin + '/?rsvp=' + schedule.id;
+  var key = schedule.rawDate || schedule.id;
+  var url = window.location.origin + '/?rsvp=' + key;
   if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){alert('RSVP link copied! Paste it into your group text.');});
   else prompt('Copy this link:', url);
 }
 
 function shareRsvpLink(){
   if(!schedule){alert('No schedule selected.');return;}
-  var url = window.location.origin + '/?rsvp=' + schedule.id;
+  var key = schedule.rawDate || schedule.id;
+  var url = window.location.origin + '/?rsvp=' + key;
   var text = 'Tap here to RSVP for ' + schedule.name + (schedule.date ? ' — ' + schedule.date : '') + ':\n' + url;
   if(navigator.share) navigator.share({title:'Pickleball RSVP', text:text}).catch(function(){});
   else copyRsvpLink();
@@ -941,7 +947,7 @@ async function init(){
     console.log('RSVP param found:', rsvpId, 'type:', typeof rsvpId);
     console.log('Schedules loaded:', schedules.length);
     schedules.forEach(function(x){ console.log('  Schedule id:', x.id, 'type:', typeof x.id, 'match:', String(x.id)===String(rsvpId)); });
-    const s=schedules.find(function(x){return String(x.id)===String(rsvpId);});
+    const s=schedules.find(function(x){return String(x.id)===String(rsvpId)||String(x.rawDate)===String(rsvpId)||String(x.date)===String(rsvpId);});
     console.log('Schedule found:', s ? s.name : 'NOT FOUND');
     if(s){
       schedule=s;
@@ -968,4 +974,13 @@ init();
     <div style="font-size:12px;color:var(--text2);line-height:1.7">
       <strong>iPhone/iPad:</strong> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste URL<br>
       <strong>Google Calendar:</strong> Other calendars → + → From URL → paste URL<br>
-      <strong>Outlook:</strong> Add calendar → Subscribe from 
+      <strong>Outlook:</strong> Add calendar → Subscribe from web → paste URL
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeCal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
