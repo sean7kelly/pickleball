@@ -820,7 +820,10 @@ function onInviteDateChange(){
 function buildInviteMsg(){
   var invDateEl=document.getElementById('invite-date');
   var dateVal=invDateEl?invDateEl.value:'';
-  var timeVal=timeEl?timeEl.value:'';var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : '';
+  var timeEl=document.getElementById('invite-time');
+  var endEl=document.getElementById('invite-end-time');
+  var timeVal=timeEl?timeEl.value:'';
+  var endVal=endEl?endEl.value:'';let datePart='';if(dateVal){const d=new Date(dateVal+'T12:00:00');datePart=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}else if(schedule&&schedule.date)datePart=schedule.date;const startStr=formatTime(timeVal),endStr=formatTime(endVal);let timePart=startStr&&endStr?`${startStr}–${endStr}`:startStr;let when=datePart&&timePart?`${datePart} from ${timePart}`:datePart&&startStr?`${datePart} at ${startStr}`:datePart||timePart||'this Sunday';  var rsvpUrl = schedule ? (window.location.origin + '/?rsvp=' + schedule.id) : '';
   var msg = 'Hey everyone! Pickleball ' + when + ' — who\'s in?';
   if(rsvpUrl) msg += '\n\nTap here to RSVP:\n' + rsvpUrl;
   msg += '\n\nSee you there! 🏓';
