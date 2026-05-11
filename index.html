@@ -816,26 +816,22 @@ function shareSchedule(){
 function formatTime(v){if(!v)return'';const[h,m]=v.split(':').map(Number);const ap=h>=12?'PM':'AM';const hr=h%12||12;return`${hr}:${m.toString().padStart(2,'0')} ${ap}`;}
 function onInviteDateChange(){
   var dateVal=document.getElementById('invite-date').value;
-  if(dateVal){
-    var d=new Date(dateVal+'T12:00:00');
-    var dayName=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-    var rsvpDateEl=document.getElementById('rsvp-quick-date');
-    if(rsvpDateEl) rsvpDateEl.value=dateVal;
-    // Check if a schedule exists for this date
-    var dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    var existing=schedules.find(function(s){return s.date===dateStr;});
-    if(existing){
-      schedule=existing;
-      document.getElementById('no-schedule-warn').style.display='none';
-      document.getElementById('rsvp-no-schedule-bar').style.display='none';
-      document.getElementById('rsvp-schedule-bar').style.display='flex';
-      document.getElementById('rsvp-schedule-name').textContent=existing.name+(existing.date?' · '+existing.date:'');
-      updateRsvpLinkSection();
-    } else {
-      document.getElementById('no-schedule-warn').style.display='block';
-      document.getElementById('rsvp-no-schedule-bar').style.display='block';
-      document.getElementById('rsvp-schedule-bar').style.display='none';
-    }
+  if(!dateVal){buildInviteMsg();return;}
+  var d=new Date(dateVal+'T12:00:00');
+  var dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var existing=schedules.find(function(s){return s.date===dateStr||s.rawDate===dateVal;});
+  var schedBar=document.getElementById('rsvp-schedule-bar');
+  var noSchedBar=document.getElementById('rsvp-no-schedule-bar');
+  var nameEl=document.getElementById('rsvp-schedule-name');
+  if(existing){
+    schedule=existing;
+    if(schedBar) schedBar.style.display='flex';
+    if(noSchedBar) noSchedBar.style.display='none';
+    if(nameEl) nameEl.textContent=existing.name+(existing.date?' · '+existing.date:'');
+    updateRsvpLinkSection();
+  } else {
+    if(schedBar) schedBar.style.display='none';
+    if(noSchedBar) noSchedBar.style.display='block';
   }
   buildInviteMsg();
 }
