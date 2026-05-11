@@ -457,7 +457,6 @@ function openEditContact(id){
   document.getElementById('ec-sex').value=c.gender||'M';
   document.getElementById('ec-dupr').value=c.dupr.toFixed(2);
   document.getElementById('ec-url').value=c.duprUrl||'';
-  document.getElementById('ec-is-player').checked=c.is_player||false;
   document.getElementById('ec-dupr-hint').innerHTML=c.duprUrl?`<a href="${c.duprUrl}" target="_blank" rel="noopener" style="color:var(--green)">Open DUPR profile ↗</a> to check latest rating.`:'💡 Find at <a href="https://mydupr.com" target="_blank" rel="noopener" style="color:var(--green)">mydupr.com</a>';
   document.getElementById('edit-contact-modal').classList.add('open');
 }
@@ -471,7 +470,7 @@ async function saveEditContact(){
   c.gender=document.getElementById('ec-sex').value;
   c.dupr=+parseFloat(document.getElementById('ec-dupr').value||c.dupr).toFixed(2);
   c.duprUrl=document.getElementById('ec-url').value.trim()||null;
-  c.is_player=true; // everyone is a player
+  c.is_player=true;
   if(c.dupr!==oldDupr)c.duprUpdated=new Date().toISOString();
   closeEditContact();renderContacts();
   try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}
