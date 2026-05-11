@@ -450,7 +450,7 @@ async function addContact(){
 }
 async function removeContact(id){if(!confirm('Remove this contact?'))return;contacts=contacts.filter(c=>c.id!==id);renderContacts();try{setSyncing();await api('contacts/delete',{id});setSynced();}catch(e){setSyncErr();}}
 function openEditContact(id){
-  const c=contacts.find(x=>x.id===id);if(!c)return;
+  const c=contacts.find(x=>x.id===id||x.id===+id);if(!c)return;
   document.getElementById('ec-id').value=id;
   document.getElementById('ec-name').value=c.name;
   document.getElementById('ec-phone').value=c.phone||'';
@@ -540,10 +540,7 @@ function renderContacts(){
             </div>
           </div>
         </div>
-        ${adminUnlocked?`<div style="display:flex;gap:4px">
-          <button class="btn btn-xs btn-teal" onclick="openEditContact(${c.id})" title="Edit">✏️</button>
-          <button class="btn btn-xs btn-danger" onclick="removeContact(${c.id})" title="Remove">✕</button>
-        </div>`:''}
+        ${adminUnlocked?('<div style="display:flex;gap:4px"><button class="btn btn-xs btn-teal" onclick="openEditContact('+c.id+')" title="Edit">✏️</button><button class="btn btn-xs btn-danger" onclick="removeContact('+c.id+')" title="Remove">✕</button></div>'):''}
       </div>
       ${adminUnlocked&&c.phone?`<div style="font-size:13px;color:var(--text2);margin:4px 0 4px"><a href="sms:${digitsOnly(c.phone)}" style="color:var(--green);text-decoration:none">📱 ${c.phone}</a></div>`:''}
       <div style="margin-bottom:6px">
@@ -554,10 +551,7 @@ function renderContacts(){
       </div>
       ${c.is_player?`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap">
         <div><div class="dupr-val">${c.dupr.toFixed(2)}</div><div style="font-size:11px;color:var(--text2)">${updStr||'DUPR not set'} · ${c.wins||0}W ${c.losses||0}L</div></div>
-        ${adminUnlocked?`<div style="display:flex;gap:4px">
-          ${c.duprUrl?'<a href="'+c.duprUrl+'" target="_blank" rel="noopener" class="btn btn-xs btn-teal">View ↗</a>':''}
-          <button class="btn btn-xs btn-primary" onclick="promptRating(${c.id})">Update DUPR</button>
-        </div>`:''}
+        ${adminUnlocked?('<div style="display:flex;gap:4px">'+(c.duprUrl?'<a href="'+c.duprUrl+'" target="_blank" rel="noopener" class="btn btn-xs btn-teal">View ↗</a>':'')+'<button class="btn btn-xs btn-primary" onclick="promptRating('+c.id+')">Update DUPR</button></div>'):''}
       </div>`:''}
       <div style="display:flex;gap:5px">
         <button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
@@ -593,16 +587,28 @@ function autoSyncRsvpsToSchedule(){
 function setRsvpQuickSunday(){const t=new Date();const diff=t.getDay()===0?7:7-t.getDay();const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Sunday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function setRsvpQuickMonday(){const t=new Date();const diff=t.getDay()===1?7:(8-t.getDay())%7||7;const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Monday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 async function createScheduleFromContacts(){
-  const dateVal=document.getElementById('invite-date').value||document.getElementById('rsvp-quick-date')?.value||'';
+  const dateVal=document.getElementById('invite-date')?.value||'';
   if(!dateVal){alert('Pick a date first.');return;}
   const d=new Date(dateVal+'T12:00:00');
   const dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  // Auto-name from the date (weekday + month/day)
   const name=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
   const existing=schedules.find(function(s){return s.date===dateStr;});
   if(existing){schedule=existing;}
-  else{const s=newScheduleObj(name);s.date=dateStr;schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}}
+  else{
+    const s=newScheduleObj(name);s.date=dateStr;schedules.unshift(s);schedule=s;
+    try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}
+  }
+  // Explicitly update UI
+  const schedBar=document.getElementById('rsvp-schedule-bar');
+  const noSchedBar=document.getElementById('rsvp-no-schedule-bar');
+  const inviteSection=document.getElementById('invite-section');
+  if(schedBar) schedBar.style.display='flex';
+  if(noSchedBar) noSchedBar.style.display='none';
+  if(inviteSection) inviteSection.style.display='block';
+  const nameEl=document.getElementById('rsvp-schedule-name');
+  if(nameEl) nameEl.textContent=schedule.name+(schedule.date?' · '+schedule.date:'');
   buildInviteMsg();
+  updateRsvpLinkSection();
   renderContacts();
 }
 function switchRsvpSchedule(){schedule=null;renderContacts();}
