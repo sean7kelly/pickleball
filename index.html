@@ -589,7 +589,7 @@ function renderContacts(){
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
-  document.getElementById('contacts-hd').textContent=`${sorted.length===contacts.length?contacts.length:sorted.length+' of '+contacts.length} contacts · ${yesCount} in · ${noCount} out`;
+  // contacts-hd updated below after sorted is built
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
   const schedBar=document.getElementById('rsvp-schedule-bar');
@@ -632,6 +632,7 @@ function renderContacts(){
     return a.name.localeCompare(b.name);
   });
   if(!sorted.length&&contacts.length){g.innerHTML='<div class="empty"><div class="ei">🔍</div>No contacts match your search.</div>';return;}
+  document.getElementById('contacts-hd').textContent=`${sorted.length===contacts.length?contacts.length:sorted.length+' of '+contacts.length} contacts · ${yesCount} in · ${noCount} out`;
   g.innerHTML=sorted.map(c=>{
     const isInv=c.invited!==false;
     const rsvp=rsvpMap[String(c.id)]||null;
@@ -1061,14 +1062,16 @@ async function deleteOldSchedules(){
 
 
 async function init(){
-  // Ensure filter controls trigger re-render on all browsers
-  ['contact-gender-filter','contact-sort'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el){
-      el.addEventListener('change',function(){renderContacts();});
-      el.addEventListener('input',function(){renderContacts();});
-    }
-  });
+  // Attach filter listeners after DOM is ready
+  setTimeout(function(){
+    ['contact-gender-filter','contact-sort'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){
+        el.addEventListener('change',function(){renderContacts();});
+        el.addEventListener('input',function(){renderContacts();});
+      }
+    });
+  }, 100);
   const schedBtn=document.querySelector('[onclick*="schedule"]');
   showTab('schedule',schedBtn);
   await loadAll();
