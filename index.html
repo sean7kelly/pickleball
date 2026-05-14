@@ -104,7 +104,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 .pin-key{height:46px;font-size:18px;font-weight:700;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;color:var(--text);}
 .pin-key:hover{background:var(--surface2);}.pin-key:active{transform:scale(.95);}
 .pin-err{font-size:12px;color:var(--red);margin-top:6px;min-height:16px;}
-.admin-only{display:none;}.admin-only.visible{display:block;}
+.admin-only{display:none!important;}.admin-only.visible{display:block;}.admin-only.visible.flex-admin{display:flex!important;}
 .admin-only-inline{display:none;}.admin-only-inline.visible{display:inline-flex;}
 .rounds-btn{min-width:40px;justify-content:center;}
 .rounds-btn.active{background:var(--green);color:#fff;border-color:var(--green);}
@@ -362,8 +362,10 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
       <div id="contacts-hd" style="font-size:13px;font-weight:600;color:var(--text2)"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm btn-teal" onclick="markAllIn()">✓ All In</button>
-        <button class="btn btn-sm" onclick="clearRsvps()">↺ Clear RSVPs</button>
+        <div class="admin-only flex-admin" style="display:none;gap:6px">
+          <button class="btn btn-sm btn-teal" onclick="markAllIn()">✓ All In</button>
+          <button class="btn btn-sm" onclick="clearRsvps()">↺ Clear RSVPs</button>
+        </div>
         <div id="lock-bar" style="display:inline-flex;align-items:center;gap:6px;position:relative">
           <button class="btn btn-sm" id="lock-btn" onclick="togglePinPad()" style="font-size:11px">🔒 Admin</button>
           <div class="pin-wrap" id="pin-wrap" style="position:absolute;right:0;top:32px;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:220px">
@@ -385,7 +387,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         </div>
       </div>
     </div>
-    <div id="admin-select-bar" style="display:flex;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px">
+    <div id="admin-select-bar" class="admin-only flex-admin" style="display:none;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px">
       <span style="font-size:13px;color:var(--text2);flex:1" id="invite-sel-count">0 selected</span>
       <button class="btn btn-sm" onclick="selectAllInvite()">Select all</button>
       <button class="btn btn-sm" onclick="selectNoneInvite()">Clear</button>
@@ -611,10 +613,7 @@ function renderContacts(){
     if(adminCard) adminCard.style.display='none';
     if(filterBar) filterBar.style.display='none';
     if(lockBar) lockBar.style.display='none';
-    var adminRsvpBtns=document.getElementById('admin-rsvp-btns');
-    var adminSelectBar=document.getElementById('admin-select-bar');
-    if(adminRsvpBtns) adminRsvpBtns.style.display='none';
-    if(adminSelectBar) adminSelectBar.style.display='none';
+    // admin-rsvp-btns and admin-select-bar hidden via admin-only class
     // Hide the entire invite/tracking card
     document.querySelectorAll('.card').forEach(function(c){
       if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
@@ -691,7 +690,7 @@ function renderContacts(){
     return `<div class="pcard">
       <div class="pcard-top">
         <div style="display:flex;align-items:flex-start;gap:8px">
-          <input type="checkbox" ${isInv?'checked':''} onchange="toggleInvite(${c.id})" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:var(--green)" />
+          ${adminUnlocked?`<input type="checkbox" ${isInv?'checked':''} onchange="toggleInvite(${c.id})" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:var(--green)" />`:''}
           <div>
             <div class="pname">${c.name}</div>
             <div class="pmeta">
