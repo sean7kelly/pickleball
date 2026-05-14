@@ -462,7 +462,10 @@ async function loadAll(){
     schedule = prevScheduleId ? (schedules.find(function(s){return s.id===prevScheduleId;})||null) : null;
     if(stRows&&stRows.length)settings={...settings,...stRows[0]};
     if(settings.invite_msg&&!settings.invite_msg.includes('[TIME]'))document.getElementById('invite-msg').value=settings.invite_msg;
-    setSynced();renderScheduleList();renderToggles();renderSchedule();renderContacts();
+    setSynced();
+    // Sync RSVPs to schedule whenever data loads
+    if(schedule) autoSyncRsvpsToSchedule();
+    renderScheduleList();if(adminUnlocked)renderToggles();renderSchedule();renderContacts();
   }catch(e){setSyncErr();console.error('loadAll error:',e);document.getElementById('sched-out').innerHTML='<div class="alert al-err">Could not load. Tap "Sync error" to retry.</div>';}
 }
 function showTab(t,btn){
@@ -727,6 +730,8 @@ function backToList(){schedule=null;document.getElementById('sched-out').innerHT
 function openSchedule(id){
   schedule=schedules.find(s=>s.id===id)||null;
   if(!schedule)return;
+  // Sync selected players from RSVPs every time schedule is opened
+  autoSyncRsvpsToSchedule();
   // Show controls only if admin, otherwise just show the schedule output
   renderScheduleList();
   if(adminUnlocked){renderToggles();}
