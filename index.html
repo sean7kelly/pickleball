@@ -648,6 +648,8 @@ function renderContacts(){
   const genderFilter=rsvpLandingMode?'':(document.getElementById('contact-gender-filter')?.value||'');
   const sortMode=rsvpLandingMode?'name':(document.getElementById('contact-sort')?.value||'name');
   let filtered=[...contacts];
+  // In RSVP landing mode only show invited contacts (checkbox selected)
+  if(rsvpLandingMode) filtered=filtered.filter(c=>c.invited!==false);
   if(searchVal) filtered=filtered.filter(c=>c.name.toLowerCase().includes(searchVal));
   if(genderFilter) filtered=filtered.filter(c=>c.gender===genderFilter);
   const sorted=filtered.sort((a,b)=>{
