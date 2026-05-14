@@ -851,6 +851,7 @@ function renderSchedule(){
   const out=document.getElementById('sched-out');
   const backBar=document.getElementById('sched-back-bar');
   const viewName=document.getElementById('sched-view-name');
+  console.log('renderSchedule: schedule=',schedule?schedule.name:'null', 'generated=',schedule?.generated, 'matches=',schedule?.matches?.length);
   if(schedule&&backBar){backBar.style.display='flex';backBar.style.alignItems='center';}
   if(!schedule&&backBar){backBar.style.display='none';}
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
