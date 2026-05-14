@@ -589,8 +589,7 @@ function renderContacts(){
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
-  // contacts-hd updated after sorted is built - placeholder for now
-  document.getElementById('contacts-hd').textContent=`${contacts.length} contacts · ${yesCount} in · ${noCount} out`;
+  document.getElementById('contacts-hd').textContent=`${sorted.length===contacts.length?contacts.length:sorted.length+' of '+contacts.length} contacts · ${yesCount} in · ${noCount} out`;
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
   const schedBar=document.getElementById('rsvp-schedule-bar');
@@ -609,7 +608,30 @@ function renderContacts(){
   }
   const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
-  const sorted=[...contacts].sort((a,b)=>{const ai=a.invited!==false?0:1,bi=b.invited!==false?0:1;if(ai!==bi)return ai-bi;const o={yes:0,null:1,no:2};return(o[rsvpMap[String(a.id)]]??1)-(o[rsvpMap[String(b.id)]]??1);});
+  // Search, filter, sort
+  const searchVal=(document.getElementById('contact-search')?.value||'').toLowerCase().trim();
+  const genderFilter=document.getElementById('contact-gender-filter')?.value||'';
+  const sortMode=document.getElementById('contact-sort')?.value||'name';
+  let filtered=[...contacts];
+  if(searchVal) filtered=filtered.filter(c=>c.name.toLowerCase().includes(searchVal));
+  if(genderFilter) filtered=filtered.filter(c=>c.gender===genderFilter);
+  const sorted=filtered.sort((a,b)=>{
+    if(sortMode==='dupr-desc') return b.dupr-a.dupr;
+    if(sortMode==='dupr-asc') return a.dupr-b.dupr;
+    if(sortMode==='wl'){
+      const ap=(a.wins||0)/Math.max(1,(a.wins||0)+(a.losses||0));
+      const bp=(b.wins||0)/Math.max(1,(b.wins||0)+(b.losses||0));
+      return bp-ap;
+    }
+    if(sortMode==='rsvp'){
+      const o={yes:0,no:2};
+      return(o[rsvpMap[String(a.id)]]??1)-(o[rsvpMap[String(b.id)]]??1);
+    }
+    const ai=a.invited!==false?0:1,bi=b.invited!==false?0:1;
+    if(ai!==bi)return ai-bi;
+    return a.name.localeCompare(b.name);
+  });
+  if(!sorted.length&&contacts.length){g.innerHTML='<div class="empty"><div class="ei">🔍</div>No contacts match your search.</div>';return;}
   g.innerHTML=sorted.map(c=>{
     const isInv=c.invited!==false;
     const rsvp=rsvpMap[String(c.id)]||null;
