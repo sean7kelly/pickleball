@@ -332,8 +332,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
   <div id="rsvp-landing-header" style="display:none;margin-bottom:12px">
     <div class="card" style="text-align:center;padding:16px">
       <div style="font-size:24px;margin-bottom:6px">🏓</div>
-      <div class="rsvp-landing-title" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
-      <div style="font-size:13px;color:var(--text2)">Tap ✓ In or ✕ Out below to RSVP</div>
+      <div class="rsvp-landing-title" style="font-size:18px;font-weight:700;margin-bottom:6px"></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Find your name and tap ✓ In or ✕ Out</div>
+      <div id="rsvp-landing-search" style="max-width:300px;margin:0 auto">
+        <input type="text" id="rsvp-search-input" placeholder="🔍 Search your name…" 
+          style="width:100%;text-align:left" oninput="renderContacts()" />
+      </div>
     </div>
   </div>
 
@@ -639,14 +643,21 @@ function renderContacts(){
   }
   const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
-  // Search, filter, sort
-  const searchVal=(document.getElementById('contact-search')?.value||'').toLowerCase().trim();
-  const genderFilter=document.getElementById('contact-gender-filter')?.value||'';
-  const sortMode=document.getElementById('contact-sort')?.value||'name';
+  // In RSVP landing mode: show all contacts sorted by name, search still works
+  const searchVal=((rsvpLandingMode?document.getElementById('rsvp-search-input'):document.getElementById('contact-search'))?.value||'').toLowerCase().trim();
+  const genderFilter=rsvpLandingMode?'':(document.getElementById('contact-gender-filter')?.value||'');
+  const sortMode=rsvpLandingMode?'name':(document.getElementById('contact-sort')?.value||'name');
   let filtered=[...contacts];
   if(searchVal) filtered=filtered.filter(c=>c.name.toLowerCase().includes(searchVal));
   if(genderFilter) filtered=filtered.filter(c=>c.gender===genderFilter);
   const sorted=filtered.sort((a,b)=>{
+    // In landing mode: sort pending first so people can find themselves easily
+    if(rsvpLandingMode){
+      const o={null:0,yes:1,no:2};
+      const ar=rsvpMap[String(a.id)]||null, br=rsvpMap[String(b.id)]||null;
+      if((o[ar]??0)!==(o[br]??0)) return (o[ar]??0)-(o[br]??0);
+      return a.name.localeCompare(b.name);
+    }
     if(sortMode==='dupr-desc') return b.dupr-a.dupr;
     if(sortMode==='dupr-asc') return a.dupr-b.dupr;
     if(sortMode==='wl'){
@@ -670,8 +681,7 @@ function renderContacts(){
     const rsvpColor=rsvp==='yes'?'bg-green':rsvp==='no'?'bg-amber':'bg-gray';
     const rsvpLabel=rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'Pending';
     const updStr=c.duprUpdated?'Updated '+new Date(c.duprUpdated).toLocaleDateString():'';
-    const showCard = rsvpLandingMode ? isInv : true;
-    if(!showCard) return '';
+    // In landing mode show all contacts (sorted by RSVP status)
     return `<div class="pcard">
       <div class="pcard-top">
         <div style="display:flex;align-items:flex-start;gap:8px">
