@@ -333,12 +333,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
       <input type="text" id="contact-search" placeholder="🔍 Search by name…" 
         style="flex:1;min-width:160px;height:34px" oninput="renderContacts()" />
-      <select id="contact-gender-filter" style="height:34px;width:90px" onchange="renderContacts()">
+      <select id="contact-gender-filter" style="height:34px;width:90px" oninput="renderContacts()" onchange="renderContacts()">
         <option value="">All</option>
         <option value="M">Men</option>
         <option value="F">Women</option>
       </select>
-      <select id="contact-sort" style="height:34px;width:130px" onchange="renderContacts()">
+      <select id="contact-sort" style="height:34px;width:130px" oninput="renderContacts()" onchange="renderContacts()">
         <option value="name">Sort: Name</option>
         <option value="dupr-desc">DUPR ↓</option>
         <option value="dupr-asc">DUPR ↑</option>
@@ -1039,6 +1039,14 @@ async function deleteOldSchedules(){
 
 
 async function init(){
+  // Ensure filter controls trigger re-render on all browsers
+  ['contact-gender-filter','contact-sort'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){
+      el.addEventListener('change',function(){renderContacts();});
+      el.addEventListener('input',function(){renderContacts();});
+    }
+  });
   const schedBtn=document.querySelector('[onclick*="schedule"]');
   showTab('schedule',schedBtn);
   await loadAll();
