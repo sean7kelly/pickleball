@@ -148,7 +148,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <div id="sched-list"></div>
   </div>
-  <div class="card no-print admin-only" id="sched-controls" style="display:none">
+  <div class="card no-print" id="sched-controls" style="display:none">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-sm" onclick="backToList()">← All schedules</button>
       <div id="sched-name-display" style="font-size:15px;font-weight:700;flex:1"></div>
@@ -468,7 +468,7 @@ function showTab(t,btn){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(t==='schedule'){renderScheduleList();renderToggles();if(schedule&&schedule.generated)renderSchedule();}
+  if(t==='schedule'){renderScheduleList();if(adminUnlocked)renderToggles();if(schedule&&schedule.generated)renderSchedule();}
   if(t==='contacts')renderContacts();
   if(t==='stats')renderStats();
 }
@@ -491,6 +491,7 @@ function unlockAdmin(){
   document.querySelectorAll('.admin-only-inline').forEach(el=>el.classList.add('visible'));
   renderContacts();
   renderScheduleList();
+  renderToggles();
 }
 function lockAdmin(){
   adminUnlocked=false;
@@ -1049,4 +1050,24 @@ init();
 <div class="modal-wrap" id="cal-modal" onclick="if(event.target===this)closeCal()">
   <div class="modal">
     <h3>📆 Subscribe to Calendar</h3>
-    <p style="font-size:13px;color:var(--text2);ma
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      Add your pickleball schedule to Apple Calendar, Google Calendar, or Outlook. It updates automatically whenever a new schedule is created.
+    </p>
+    <div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;font-family:monospace;font-size:12px;word-break:break-all;border:1px solid var(--border);margin-bottom:12px" id="cal-url"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-primary btn-sm" onclick="copyCal()">📋 Copy URL</button>
+      <a id="cal-open-link" href="#" class="btn btn-teal btn-sm" target="_blank" rel="noopener">📆 Open in Calendar</a>
+    </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7">
+      <strong>iPhone/iPad:</strong> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste URL<br>
+      <strong>Google Calendar:</strong> Other calendars → + → From URL → paste URL<br>
+      <strong>Outlook:</strong> Add calendar → Subscribe from web → paste URL
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeCal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
