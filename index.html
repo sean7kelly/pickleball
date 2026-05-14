@@ -611,6 +611,10 @@ function renderContacts(){
     if(adminCard) adminCard.style.display='none';
     if(filterBar) filterBar.style.display='none';
     if(lockBar) lockBar.style.display='none';
+    var adminRsvpBtns=document.getElementById('admin-rsvp-btns');
+    var adminSelectBar=document.getElementById('admin-select-bar');
+    if(adminRsvpBtns) adminRsvpBtns.style.display='none';
+    if(adminSelectBar) adminSelectBar.style.display='none';
     // Hide the entire invite/tracking card
     document.querySelectorAll('.card').forEach(function(c){
       if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
