@@ -328,9 +328,18 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 
   </div>
 
+  <!-- RSVP landing header (shown when opened via RSVP link) -->
+  <div id="rsvp-landing-header" style="display:none;margin-bottom:12px">
+    <div class="card" style="text-align:center;padding:16px">
+      <div style="font-size:24px;margin-bottom:6px">🏓</div>
+      <div class="rsvp-landing-title" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+      <div style="font-size:13px;color:var(--text2)">Tap ✓ In or ✕ Out below to RSVP</div>
+    </div>
+  </div>
+
   <div style="margin-bottom:8px">
     <!-- Search and filter bar -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+    <div id="contact-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
       <input type="text" id="contact-search" placeholder="🔍 Search by name…" 
         style="flex:1;min-width:160px;height:34px" oninput="renderContacts()" />
       <select id="contact-gender-filter" style="height:34px;width:90px" oninput="renderContacts()" onchange="renderContacts()">
@@ -345,7 +354,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         <option value="rsvp">RSVP status</option>
         <option value="wl">Win %</option>
       </select>
-    </div>
+    </div><!-- end filter bar -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
       <div id="contacts-hd" style="font-size:13px;font-weight:600;color:var(--text2)"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -437,7 +446,7 @@ function setSyncing(){document.getElementById('sync-dot').className='sync-dot sy
 function setSynced(){document.getElementById('sync-dot').className='sync-dot';document.getElementById('sync-label').textContent='Synced ✓';}
 function setSyncErr(){document.getElementById('sync-dot').className='sync-dot error';document.getElementById('sync-label').textContent='Sync error — tap to retry';}
 function setLoading(){document.getElementById('sync-dot').className='sync-dot syncing';document.getElementById('sync-label').textContent='Loading…';}
-let contacts=[],schedules=[],schedule=null;
+let contacts=[],schedules=[],schedule=null,rsvpLandingMode=false;
 let settings={pin_hash:'',invite_msg:"Hey everyone! Pickleball this Sunday — who's in? Reply YES to be added to the schedule, NO if you can't make it. See you there! 🏓"};
 const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
@@ -586,6 +595,28 @@ function renderContacts(){
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
   const pl=players();
+
+  // In RSVP landing mode: clean view for RSVP respondents
+  const adminCard=document.getElementById('add-contact-card');
+  const filterBar=document.getElementById('contact-filter-bar');
+  const rsvpHeader=document.getElementById('rsvp-landing-header');
+  const lockBar=document.getElementById('lock-bar');
+  const inviteTrackCard=document.querySelector('.card:has(#rsvp-schedule-bar)');
+  const selectionBar=document.querySelector('[id="invite-sel-count"]')?.closest('div[style]');
+  if(rsvpLandingMode){
+    if(adminCard) adminCard.style.display='none';
+    if(filterBar) filterBar.style.display='none';
+    if(lockBar) lockBar.style.display='none';
+    // Hide the entire invite/tracking card
+    document.querySelectorAll('.card').forEach(function(c){
+      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
+    });
+    if(rsvpHeader) rsvpHeader.style.display='block';
+    if(rsvpHeader&&schedule) rsvpHeader.querySelector('.rsvp-landing-title').textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
+  } else {
+    if(rsvpHeader) rsvpHeader.style.display='none';
+  }
+
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
@@ -639,7 +670,9 @@ function renderContacts(){
     const rsvpColor=rsvp==='yes'?'bg-green':rsvp==='no'?'bg-amber':'bg-gray';
     const rsvpLabel=rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'Pending';
     const updStr=c.duprUpdated?'Updated '+new Date(c.duprUpdated).toLocaleDateString():'';
-    return `<div class="pcard" style="opacity:${isInv?'1':'0.55'}">
+    const showCard = rsvpLandingMode ? isInv : true;
+    if(!showCard) return '';
+    return `<div class="pcard">
       <div class="pcard-top">
         <div style="display:flex;align-items:flex-start;gap:8px">
           <input type="checkbox" ${isInv?'checked':''} onchange="toggleInvite(${c.id})" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:var(--green)" />
@@ -1080,6 +1113,7 @@ async function init(){
   const params=new URLSearchParams(window.location.search);
   const rsvpId=params.get('rsvp');
   if(rsvpId){
+    rsvpLandingMode=true;
     console.log('RSVP param found:', rsvpId, 'type:', typeof rsvpId);
     console.log('Schedules loaded:', schedules.length);
     schedules.forEach(function(x){ console.log('  Schedule id:', x.id, 'type:', typeof x.id, 'match:', String(x.id)===String(rsvpId)); });
