@@ -649,8 +649,8 @@ async function batchSaveContacts(){try{setSyncing();await Promise.all(contacts.m
 function autoSyncRsvpsToSchedule(){
   if(!schedule)return;
   const rsvpMap=schedule.rsvps||{};
-  const inNames=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').map(c=>c.name.toLowerCase());
-  const inPlayers=players().filter(p=>inNames.includes(p.name.toLowerCase()));
+  // Use all contacts who RSVPed yes (everyone in contacts is a player)
+  const inPlayers=contacts.filter(c=>rsvpMap[String(c.id)]==='yes');
   schedule.selected=inPlayers.map(p=>p.id);
   if(inPlayers.length>=4)genScheduleSilent(inPlayers);
   else{schedule.matches=[];schedule.generated=false;renderSchedule();}
@@ -745,11 +745,11 @@ function updateRoundsBtns(){const r=schedule?(schedule.rounds||10):10;document.q
 async function setMode(m){if(!schedule)return;schedule.mode=m;updateModeBtns();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function updateModeBtns(){const m=schedule?(schedule.mode||'auto'):'auto';document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.toggle('active',btn.getAttribute('onclick').includes("'"+m+"'")));}
 function renderToggles(){
-  // Only show players who RSVPed Yes for this schedule (or all players if no RSVPs set)
+  // Show contacts who RSVPed Yes (or all contacts if no RSVPs set)
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
   const hasRsvps=Object.keys(rsvpMap).length>0;
-  const pl=players().filter(function(p){
-    if(!hasRsvps) return true; // no RSVPs yet, show everyone
+  const pl=contacts.filter(function(p){
+    if(!hasRsvps) return true;
     return rsvpMap[String(p.id)]==='yes';
   });
   document.getElementById('toggles').innerHTML=pl.map(p=>`<button class="ptog ${schedule&&schedule.selected.includes(p.id)?'on':''}" onclick="togP(${p.id})">${p.name} <span class="g">${p.gender} ${p.dupr.toFixed(1)}</span></button>`).join('');
