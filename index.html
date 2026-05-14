@@ -191,8 +191,10 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div id="sched-alert" style="margin-top:10px"></div>
   </div>
   <div id="sched-back-bar" style="display:none;margin-bottom:8px">
-    <button class="btn btn-sm" onclick="backToList()">← All schedules</button>
-    <span id="sched-view-name" style="font-size:14px;font-weight:600;margin-left:8px"></span>
+    <div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="backToList()">← All schedules</button>
+      <span id="sched-view-name" style="font-size:15px;font-weight:700;flex:1"></span>
+    </div>
   </div>
   <div id="sched-out"></div>
 </div>
@@ -716,7 +718,10 @@ function renderScheduleList(){
   listCard.style.display='block';controls.style.display='none';
   const listEl=document.getElementById('sched-list');
   if(!schedules.length){listEl.innerHTML='<div class="empty" style="padding:1rem"><div class="ei" style="font-size:24px">📅</div>No schedules yet.</div>';return;}
-  listEl.innerHTML=schedules.map(s=>{const mc=s.matches?s.matches.reduce((t,r)=>t+(r.matches||[]).length,0):0;const meta=s.generated?`${s.date} · ${s.rounds||10} rounds · ${mc} matches`:`${s.rounds||10} rounds · not generated yet`;return`<div class="sched-item" onclick="openSchedule(${s.id})"><div><div class="sched-item-name">${s.name}</div><div class="sched-item-meta">${meta}</div></div><span style="color:var(--text2);font-size:18px">›</span></div>`;}).join('');
+  listEl.innerHTML=schedules.map(s=>{const mc=s.matches?s.matches.reduce((t,r)=>t+(r.matches||[]).length,0):0;const meta=s.generated?`${s.date} · ${s.rounds||10} rounds · ${mc} matches`:`${s.rounds||10} rounds · not generated yet`;return`<div class="sched-item" onclick="openSchedule(${s.id})">
+      <div style="flex:1"><div class="sched-item-name">${s.name}</div><div class="sched-item-meta">${meta}</div></div>
+      <span class="btn btn-sm btn-teal" style="pointer-events:none">${s.generated?'View':'Details'}</span>
+    </div>`;}).join('');
 }
 function backToList(){schedule=null;document.getElementById('sched-out').innerHTML='';renderScheduleList();renderToggles();}
 function openSchedule(id){
