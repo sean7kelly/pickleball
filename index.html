@@ -589,8 +589,8 @@ function renderContacts(){
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
-  const filteredCount=contacts.filter(c=>{const sv=(document.getElementById('contact-search')?.value||'').toLowerCase();const gf=document.getElementById('contact-gender-filter')?.value||'';return(!sv||c.name.toLowerCase().includes(sv))&&(!gf||c.gender===gf);}).length;
-  document.getElementById('contacts-hd').textContent=`${filteredCount===contacts.length?contacts.length:filteredCount+' of '+contacts.length} contacts · ${yesCount} in · ${noCount} out`;
+  // contacts-hd updated after sorted is built - placeholder for now
+  document.getElementById('contacts-hd').textContent=`${contacts.length} contacts · ${yesCount} in · ${noCount} out`;
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
   const schedBar=document.getElementById('rsvp-schedule-bar');
@@ -609,7 +609,6 @@ function renderContacts(){
   }
   const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
-  if(!sorted.length){g.innerHTML='<div class="empty"><div class="ei">🔍</div>No contacts match your search.</div>';return;}
   const sorted=[...contacts].sort((a,b)=>{const ai=a.invited!==false?0:1,bi=b.invited!==false?0:1;if(ai!==bi)return ai-bi;const o={yes:0,null:1,no:2};return(o[rsvpMap[String(a.id)]]??1)-(o[rsvpMap[String(b.id)]]??1);});
   g.innerHTML=sorted.map(c=>{
     const isInv=c.invited!==false;
