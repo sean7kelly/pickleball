@@ -169,6 +169,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm rounds-btn" onclick="setRounds(12)">12</button>
         </div>
       </div>
+
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Match type</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -458,7 +459,7 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{}};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{}};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{}};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,courts:r.courts||3,mode:r.mode||'auto',rsvps:r.rsvps||{}};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -482,7 +483,7 @@ function slimSchedule(s){
   };
 }
 function hydrateSchedule(s){const findP=id=>contacts.find(c=>c.id===id||c.id===+id)||{id,name:'?',gender:'M',dupr:3.5};return{...s,matches:(s.matches||[]).map(round=>({...round,sitters:(round.sitters||[]).map(id=>typeof id==='object'?id:findP(id)),matches:(round.matches||[]).map(m=>({...m,team1:m.team1.map(id=>typeof id==='object'?id:findP(id)),team2:m.team2.map(id=>typeof id==='object'?id:findP(id))}))}))}}
-function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{}};}
+function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,courts:3,mode:'auto',rsvps:{}};}
 async function loadAll(){
   setLoading();
   document.getElementById('sched-out').innerHTML='<div style="color:var(--text2);font-size:13px;padding:8px"><span class="spin"></span> Loading…</div>';
@@ -847,7 +848,7 @@ function renderToggles(){
 async function togP(id){if(!schedule)return;const i=schedule.selected.indexOf(id);if(i>-1)schedule.selected.splice(i,1);else schedule.selected.push(id);renderToggles();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function updateSelInfo(){const pl=(schedule?schedule.selected:[]).map(id=>contacts.find(c=>c.id===id)).filter(Boolean);document.getElementById('sel-info').textContent=`${pl.length} selected · ${pl.filter(p=>p.gender==='M').length} men · ${pl.filter(p=>p.gender==='F').length} women`;}
 function buildScheduleRounds(activePlayers,ROUNDS,mode){
-  const COURTS=3,pH={},sitCts={};
+  const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
   const scorePair=(a,b)=>pairUsed(a,b)*20+Math.abs(a.dupr-b.dupr)*0.5;
