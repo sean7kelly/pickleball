@@ -367,13 +367,13 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       </select>
       <select id="contact-avail-filter" style="height:34px;width:110px" oninput="renderContacts()" onchange="renderContacts()">
         <option value="">All days</option>
-        <option value="0">Available Sun</option>
-        <option value="1">Available Mon</option>
-        <option value="2">Available Tue</option>
-        <option value="3">Available Wed</option>
-        <option value="4">Available Thu</option>
-        <option value="5">Available Fri</option>
-        <option value="6">Available Sat</option>
+        <option value="0">Free Sunday</option>
+        <option value="1">Free Monday</option>
+        <option value="2">Free Tuesday</option>
+        <option value="3">Free Wednesday</option>
+        <option value="4">Free Thursday</option>
+        <option value="5">Free Friday</option>
+        <option value="6">Free Saturday</option>
       </select>
     </div><!-- end filter bar -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
@@ -454,7 +454,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <div style="margin-top:10px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">
-        Available days <span style="font-weight:400">(leave all off = always available)</span>
+        Days NOT available <span style="font-weight:400">(leave all off = always available)</span>
       </label>
       <div style="display:flex;gap:6px;flex-wrap:wrap" id="avail-days-wrap">
         <button type="button" class="btn btn-sm avail-day-btn" data-day="0">Sun</button>
@@ -702,8 +702,8 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   if(availFilter!==''){
     const day=+availFilter;
     filtered=filtered.filter(function(c){
-      // Show if: no availability set (always available) OR day is in their available days
-      return !c.availDays||c.availDays.length===0||c.availDays.includes(day);
+      // Show if: no blocked days set OR this day is NOT in their blocked days
+      return !c.availDays||c.availDays.length===0||!c.availDays.includes(day);
     });
   }
   const sorted=filtered.sort((a,b)=>{
@@ -803,7 +803,7 @@ function autoSyncRsvpsToSchedule(){
   const inPlayers=contacts.filter(function(c){
     if(rsvpMap[String(c.id)]!=='yes')return false;
     // If player has availability set and schedule has a day, check availability
-    if(schedDay!==null&&c.availDays&&c.availDays.length&&!c.availDays.includes(schedDay))return false;
+    if(schedDay!==null&&c.availDays&&c.availDays.length&&c.availDays.includes(schedDay))return false;
     return true;
   });
   schedule.selected=inPlayers.map(p=>p.id);
