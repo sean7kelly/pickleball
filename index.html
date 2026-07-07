@@ -169,7 +169,6 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm rounds-btn" onclick="setRounds(12)">12</button>
         </div>
       </div>
-
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Match type</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -178,6 +177,11 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm mode-btn" onclick="setMode('gender')">Gender only</button>
         </div>
       </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Forced pairs <span style="font-weight:400">(keep these players on the same team)</span></label>
+      <div id="pairs-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button class="btn btn-sm btn-teal" onclick="addPair()" style="margin-top:6px">+ Add pair</button>
     </div>
     <div class="card-title">Who's playing?</div>
     <div class="tgrid" id="toggles"></div>
@@ -459,7 +463,7 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{}};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{}};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,courts:r.courts||3,mode:r.mode||'auto',rsvps:r.rsvps||{}};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[]};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -483,7 +487,7 @@ function slimSchedule(s){
   };
 }
 function hydrateSchedule(s){const findP=id=>contacts.find(c=>c.id===id||c.id===+id)||{id,name:'?',gender:'M',dupr:3.5};return{...s,matches:(s.matches||[]).map(round=>({...round,sitters:(round.sitters||[]).map(id=>typeof id==='object'?id:findP(id)),matches:(round.matches||[]).map(m=>({...m,team1:m.team1.map(id=>typeof id==='object'?id:findP(id)),team2:m.team2.map(id=>typeof id==='object'?id:findP(id))}))}))}}
-function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,courts:3,mode:'auto',rsvps:{}};}
+function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{},pairs:[]};}
 async function loadAll(){
   setLoading();
   document.getElementById('sched-out').innerHTML='<div style="color:var(--text2);font-size:13px;padding:8px"><span class="spin"></span> Loading…</div>';
@@ -844,10 +848,11 @@ function renderToggles(){
   });
   document.getElementById('toggles').innerHTML=pl.map(p=>`<button class="ptog ${schedule&&schedule.selected.includes(p.id)?'on':''}" onclick="togP(${p.id})">${p.name} <span class="g">${p.gender} ${p.dupr.toFixed(1)}</span></button>`).join('');
   updateSelInfo();
+  renderPairs();
 }
 async function togP(id){if(!schedule)return;const i=schedule.selected.indexOf(id);if(i>-1)schedule.selected.splice(i,1);else schedule.selected.push(id);renderToggles();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function updateSelInfo(){const pl=(schedule?schedule.selected:[]).map(id=>contacts.find(c=>c.id===id)).filter(Boolean);document.getElementById('sel-info').textContent=`${pl.length} selected · ${pl.filter(p=>p.gender==='M').length} men · ${pl.filter(p=>p.gender==='F').length} women`;}
-function buildScheduleRounds(activePlayers,ROUNDS,mode){
+function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
   const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
@@ -855,7 +860,8 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode){
   const avgR=arr=>arr.reduce((s,p)=>s+p.dupr,0)/arr.length;
   const rDiff=(t1,t2)=>Math.abs(avgR(t1)-avgR(t2));
   const markPair=(a,b)=>{pH[pKey(a.id,b.id)]=(pH[pKey(a.id,b.id)]||0)+1;};
-  function bestPair(pool){
+  function bestPair(pool,forcedPair){
+  if(forcedPair){const a=pool.find(p=>p.id===forcedPair[0]),b=pool.find(p=>p.id===forcedPair[1]);if(a&&b)return[a,b];}
   // Score all pairs, then pick randomly among near-best to avoid always same pairs
   let best=null,bs=Infinity;
   const scored=[];
@@ -865,9 +871,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode){
     if(s<bs){bs=s;}
   }
   if(!scored.length)return null;
-  // Consider all pairs within 5 points of best as candidates
   const candidates=scored.filter(x=>x.score<=bs+5);
-  // Pick randomly among candidates to add variety
   return candidates[Math.floor(Math.random()*candidates.length)].pair;
 }
   function buildMixed(men,women){
@@ -913,8 +917,37 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode){
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
     const used=new Set(),matches=[];let ci=0;
-    for(let c=0;c<mC;c++){const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)));if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)));if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<fC;c++){const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)));if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)));if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    // Get active forced pairs for this round
+    const roundPairs=(pairs||[]).filter(function(p){return r<p.rounds;});
+    // Pre-place forced pairs
+    roundPairs.forEach(function(fp){
+      const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
+      if(a&&b&&!used.has(a.id)&&!used.has(b.id)){used.add(a.id);used.add(b.id);}
+    });
+    // Helper: get forced pair for a pool if applicable, respecting gender/mode rules
+    function getForcedPair(pool,courtType){
+      for(var fi=0;fi<roundPairs.length;fi++){
+        var fp=roundPairs[fi];
+        var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
+        if(!a||!b)continue;
+        // Check gender rules for this court type
+        if(courtType==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
+        if(courtType==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
+        if(courtType==='mixed'&&a.gender===b.gender)continue;
+        // Check mode rules
+        if(mode==='mixed'&&a.gender===b.gender)continue;
+        if(mode==='gender'&&a.gender!==b.gender)continue;
+        // Both must be in the pool and available
+        var pa=pool.find(p=>p.id===fp.p1&&!used.has(p.id));
+        var pb=pool.find(p=>p.id===fp.p2&&!used.has(p.id));
+        if(pa&&pb)return[fp.p1,fp.p2];
+      }
+      return null;
+    }
+    // Re-add forced pair members to available (they were pre-marked to check validity)
+    roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
+    for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<xC;c++){const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));const result=buildMixed(avM,avF);if(!result)continue;result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     allRounds.push({round:r+1,matches,sitters});
   }
@@ -926,7 +959,7 @@ async function genSchedule(){
   document.getElementById('sched-alert').innerHTML='';
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode);
+  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[]);
   schedule.generated=true;
   schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
@@ -935,7 +968,7 @@ async function genSchedule(){
 function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode);
+  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[]);
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
@@ -1109,6 +1142,59 @@ async function deleteOldSchedules(){
   alert(old.length + ' past schedule' + (old.length!==1?'s':'') + ' deleted.');
 }
 
+
+/* ── forced pairs ── */
+function renderPairs(){
+  const list=document.getElementById('pairs-list');
+  if(!list||!schedule)return;
+  const pairs=schedule.pairs||[];
+  const pl=(schedule.selected||[]).map(function(id){return contacts.find(function(c){return c.id===id;});}).filter(Boolean);
+  if(!pairs.length){list.innerHTML='<div style="font-size:12px;color:var(--text2)">No pairs — players randomized freely.</div>';return;}
+  list.innerHTML=pairs.map(function(pair,i){
+    const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
+    if(!p1||!p2)return '';
+    const opts=[1,2,3,4,5,6,7,8,9,10].map(function(n){return '<option value="'+n+'"'+(pair.rounds===n?' selected':'')+'>'+n+' round'+(n>1?'s':'')+'</option>';}).join('')+'<option value="99"'+(pair.rounds>=99?' selected':'')+'>All rounds</option>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);flex-wrap:wrap"><span style="font-size:13px;font-weight:600">'+p1.name+' + '+p2.name+'</span><span style="font-size:12px;color:var(--text2)">together for</span><select onchange="updatePairRounds('+i+',this.value)" style="height:28px;width:100px;font-size:12px">'+opts+'</select><button class="btn btn-xs btn-danger" onclick="removePair('+i+')" style="margin-left:auto">✕ Remove</button></div>';
+  }).join('');
+  // Show warning if any pair conflicts with current mode
+  if(pairs.length&&schedule){
+    const m=schedule.mode||'auto';
+    const conflicts=pairs.filter(function(pair){
+      const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
+      if(!p1||!p2)return false;
+      if(m==='mixed'&&p1.gender===p2.gender)return true;
+      if(m==='gender'&&p1.gender!==p2.gender)return true;
+      return false;
+    });
+    if(conflicts.length){
+      const warn=document.createElement('div');
+      warn.style.cssText='font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:6px 10px;margin-top:6px';
+      warn.textContent='⚠️ '+conflicts.length+' pair'+(conflicts.length>1?'s conflict':'  conflicts')+' with the current match type and will be skipped. Gender rules take priority.';
+      list.appendChild(warn);
+    }
+  }
+}
+
+function addPair(){
+  if(!schedule)return;
+  const pl=(schedule.selected||[]).map(function(id){return contacts.find(function(c){return c.id===id;});}).filter(Boolean);
+  if(pl.length<2){alert('Select at least 2 players first.');return;}
+  if(!schedule.pairs)schedule.pairs=[];
+  const nameList=pl.map(function(p,i){return i+': '+p.name;}).join(', ');
+  const i1=parseInt(prompt('First player number ('+nameList+'):'));
+  if(isNaN(i1)||!pl[i1])return;
+  const i2=parseInt(prompt('Second player number ('+nameList+'):'));
+  if(isNaN(i2)||!pl[i2]||i2===i1){alert('Invalid selection.');return;}
+  const r=parseInt(prompt('Rounds together (99 = all):','3'));
+  if(isNaN(r)||r<1)return;
+  schedule.pairs.push({p1:pl[i1].id,p2:pl[i2].id,rounds:Math.min(r,99)});
+  renderPairs();
+  savePairs();
+}
+
+function removePair(i){if(!schedule||!schedule.pairs)return;schedule.pairs.splice(i,1);renderPairs();savePairs();}
+function updatePairRounds(i,val){if(!schedule||!schedule.pairs)return;schedule.pairs[i].rounds=+val;savePairs();}
+async function savePairs(){try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 
 async function init(){
   // Attach filter listeners after DOM is ready
