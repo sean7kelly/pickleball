@@ -110,6 +110,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 .rounds-btn.active{background:var(--green);color:#fff;border-color:var(--green);}
 .mode-btn{white-space:nowrap;}
 .mode-btn.active{background:var(--green);color:#fff;border-color:var(--green);}
+.avail-day-btn{min-width:40px;justify-content:center;}
+.avail-day-btn.on{background:var(--green);color:#fff;border-color:var(--green);}
 .sched-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:6px;background:var(--surface2);cursor:pointer;transition:background .12s;}
 .sched-item:hover{background:#e8e5df;}
 .sched-item-name{font-size:14px;font-weight:600;flex:1;}
@@ -187,8 +189,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div class="tgrid" id="toggles"></div>
     <div id="sel-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="genSchedule()">⚡ Generate</button>
-      <button class="btn btn-teal" onclick="loadAll()">🔄 Refresh</button>
+      <button class="btn btn-primary" onclick="genSchedule()">⚡ Regenerate schedule</button>
       <button class="btn" onclick="window.print()">🖨️ Print</button>
       <button class="btn" onclick="shareSchedule()">📤 Share</button>
       <button class="btn btn-danger btn-sm" onclick="resetSchedule()">🗑️ Clear</button>
@@ -317,7 +318,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         <textarea id="invite-msg" rows="5" style="height:auto;padding:8px 10px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <button class="btn btn-primary" onclick="copyNumbers()">📋 Copy numbers &amp; message</button>
+        <button class="btn btn-primary" onclick="copyNumbersBtn()">📋 Copy numbers</button>
+        <button class="btn btn-teal" onclick="copyMessage()">📋 Copy message</button>
         <span id="contact-count" style="font-size:12px;color:var(--text2)"></span>
       </div>
       <div id="rsvp-link-section" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
@@ -362,6 +364,16 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         <option value="dupr-asc">DUPR ↑</option>
         <option value="rsvp">RSVP status</option>
         <option value="wl">Win %</option>
+      </select>
+      <select id="contact-avail-filter" style="height:34px;width:110px" oninput="renderContacts()" onchange="renderContacts()">
+        <option value="">All days</option>
+        <option value="0">Available Sun</option>
+        <option value="1">Available Mon</option>
+        <option value="2">Available Tue</option>
+        <option value="3">Available Wed</option>
+        <option value="4">Available Thu</option>
+        <option value="5">Available Fri</option>
+        <option value="6">Available Sat</option>
       </select>
     </div><!-- end filter bar -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
@@ -440,6 +452,20 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div id="ec-dupr-hint" style="font-size:12px;color:var(--text2);line-height:1.6"></div>
       <!-- is_player defaults to true for all contacts -->
     </div>
+    <div style="margin-top:10px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">
+        Available days <span style="font-weight:400">(leave all off = always available)</span>
+      </label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="avail-days-wrap">
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="0">Sun</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="1">Mon</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="2">Tue</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="3">Wed</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="4">Thu</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="5">Fri</button>
+        <button type="button" class="btn btn-sm avail-day-btn" data-day="6">Sat</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeEditContact()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditContact()">Save</button>
@@ -461,8 +487,8 @@ let contacts=[],schedules=[],schedule=null,rsvpLandingMode=false;
 let settings={pin_hash:'',invite_msg:"Hey everyone! Pickleball this Sunday — who's in? Reply YES to be added to the schedule, NO if you can't make it. See you there! 🏓"};
 const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
-function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{}};}
-function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{}};}
+function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
+function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
 function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[]};}
 function slimSchedule(s){
   if(!s)return null;
@@ -574,6 +600,13 @@ function openEditContact(id){
   document.getElementById('ec-dupr').value=c.dupr.toFixed(2);
   document.getElementById('ec-url').value=c.duprUrl||'';
   document.getElementById('ec-dupr-hint').innerHTML=c.duprUrl?`<a href="${c.duprUrl}" target="_blank" rel="noopener" style="color:var(--green)">Open DUPR profile ↗</a> to check latest rating.`:'💡 Find at <a href="https://mydupr.com" target="_blank" rel="noopener" style="color:var(--green)">mydupr.com</a>';
+  // Populate availability day buttons
+  const days=c.availDays||[];
+  document.querySelectorAll('.avail-day-btn').forEach(function(btn){
+    const d=+btn.getAttribute('data-day');
+    btn.classList.toggle('on',days.includes(d));
+    btn.onclick=function(){btn.classList.toggle('on');};
+  });
   document.getElementById('edit-contact-modal').classList.add('open');
 }
 function closeEditContact(){document.getElementById('edit-contact-modal').classList.remove('open');}
@@ -587,6 +620,10 @@ async function saveEditContact(){
   c.dupr=+parseFloat(document.getElementById('ec-dupr').value||c.dupr).toFixed(2);
   c.duprUrl=document.getElementById('ec-url').value.trim()||null;
   c.is_player=true;
+  // Save availability days (null = always available, [] means no days selected)
+  const activeDays=[];
+  document.querySelectorAll('.avail-day-btn.on').forEach(function(btn){activeDays.push(+btn.getAttribute('data-day'));});
+  c.availDays=activeDays.length?activeDays:null;
   if(c.dupr!==oldDupr)c.duprUpdated=new Date().toISOString();
   closeEditContact();renderContacts();
   try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}
@@ -602,7 +639,7 @@ async function promptRating(id){
     try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}
   },400);
 }
-function renderContacts(){
+function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
   const pl=players();
@@ -660,6 +697,15 @@ function renderContacts(){
   if(rsvpLandingMode) filtered=filtered.filter(c=>c.invited!==false);
   if(searchVal) filtered=filtered.filter(c=>c.name.toLowerCase().includes(searchVal));
   if(genderFilter) filtered=filtered.filter(c=>c.gender===genderFilter);
+  // Availability filter
+  const availFilter=document.getElementById('contact-avail-filter')?.value||'';
+  if(availFilter!==''){
+    const day=+availFilter;
+    filtered=filtered.filter(function(c){
+      // Show if: no availability set (always available) OR day is in their available days
+      return !c.availDays||c.availDays.length===0||c.availDays.includes(day);
+    });
+  }
   const sorted=filtered.sort((a,b)=>{
     // In landing mode: sort pending first so people can find themselves easily
     if(rsvpLandingMode){
@@ -684,7 +730,14 @@ function renderContacts(){
     return a.name.localeCompare(b.name);
   });
   if(!sorted.length&&contacts.length){g.innerHTML='<div class="empty"><div class="ei">🔍</div>No contacts match your search.</div>';return;}
-  document.getElementById('contacts-hd').textContent=`${sorted.length===contacts.length?contacts.length:sorted.length+' of '+contacts.length} contacts · ${yesCount} in · ${noCount} out`;
+  const yesM=contacts.filter(c=>rsvpMap[String(c.id)]==='yes'&&c.gender==='M').length;
+  const yesF=contacts.filter(c=>rsvpMap[String(c.id)]==='yes'&&c.gender==='F').length;
+  const noM=contacts.filter(c=>rsvpMap[String(c.id)]==='no'&&c.gender==='M').length;
+  const noF=contacts.filter(c=>rsvpMap[String(c.id)]==='no'&&c.gender==='F').length;
+  const total=sorted.length===contacts.length?contacts.length:sorted.length+' of '+contacts.length;
+  const inStr=yesCount+' in'+(yesCount?(` (${yesM}M ${yesF}F)`):'');
+  const outStr=noCount+' out'+(noCount?(` (${noM}M ${noF}F)`):'');
+  document.getElementById('contacts-hd').textContent=`${total} contacts · ${inStr} · ${outStr}`;
   g.innerHTML=sorted.map(c=>{
     const isInv=c.invited!==false;
     const rsvp=rsvpMap[String(c.id)]||null;
@@ -743,8 +796,16 @@ async function batchSaveContacts(){try{setSyncing();await Promise.all(contacts.m
 function autoSyncRsvpsToSchedule(){
   if(!schedule)return;
   const rsvpMap=schedule.rsvps||{};
-  // Use all contacts who RSVPed yes (everyone in contacts is a player)
-  const inPlayers=contacts.filter(c=>rsvpMap[String(c.id)]==='yes');
+  // Get day of week from schedule date if available
+  let schedDay=null;
+  if(schedule.rawDate){try{schedDay=new Date(schedule.rawDate+'T12:00:00').getDay();}catch(e){}}
+  // Use contacts who RSVPed yes AND are available on the schedule day
+  const inPlayers=contacts.filter(function(c){
+    if(rsvpMap[String(c.id)]!=='yes')return false;
+    // If player has availability set and schedule has a day, check availability
+    if(schedDay!==null&&c.availDays&&c.availDays.length&&!c.availDays.includes(schedDay))return false;
+    return true;
+  });
   schedule.selected=inPlayers.map(p=>p.id);
   if(inPlayers.length>=4)genScheduleSilent(inPlayers);
   else{schedule.matches=[];schedule.generated=false;renderSchedule();}
@@ -853,6 +914,8 @@ function renderToggles(){
 async function togP(id){if(!schedule)return;const i=schedule.selected.indexOf(id);if(i>-1)schedule.selected.splice(i,1);else schedule.selected.push(id);renderToggles();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function updateSelInfo(){const pl=(schedule?schedule.selected:[]).map(id=>contacts.find(c=>c.id===id)).filter(Boolean);document.getElementById('sel-info').textContent=`${pl.length} selected · ${pl.filter(p=>p.gender==='M').length} men · ${pl.filter(p=>p.gender==='F').length} women`;}
 function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
+  // Reset runtime play counters (not persisted)
+  (pairs||[]).forEach(function(p){p._played=0;});
   const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
@@ -917,8 +980,9 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
     const used=new Set(),matches=[];let ci=0;
-    // Get active forced pairs for this round
-    const roundPairs=(pairs||[]).filter(function(p){return r<p.rounds;});
+    // Get active forced pairs - only those who haven't reached their play count yet
+    if(r===0){pairs.forEach(function(p){if(p._played===undefined)p._played=0;});}
+    const roundPairs=(pairs||[]).filter(function(p){return (p._played||0)<p.rounds;});
     // Pre-place forced pairs
     roundPairs.forEach(function(fp){
       const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
@@ -946,9 +1010,17 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
     }
     // Re-add forced pair members to available (they were pre-marked to check validity)
     roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
-    for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    // Track which pairs get successfully placed this round
+    var pairedThisRound=new Set();
+    for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<xC;c++){const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));const result=buildMixed(avM,avF);if(!result)continue;result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    // Increment play count only for pairs that were actually placed together
+    roundPairs.forEach(function(fp){
+      if(pairedThisRound.has(fp.p1+':'+fp.p2)||pairedThisRound.has(fp.p2+':'+fp.p1)){
+        fp._played=(fp._played||0)+1;
+      }
+    });
     allRounds.push({round:r+1,matches,sitters});
   }
   return allRounds;
@@ -1061,7 +1133,58 @@ function setNextDay(day){const t=new Date();let diff=day-t.getDay();if(diff<=0)d
 function setNextSunday(){setNextDay(0);}function setNextMonday(){setNextDay(1);}
 function getInvited(){return contacts.filter(c=>c.invited!==false);}
 async function sendGroupText(){const inv=getInvited();if(!inv.length){alert('No contacts selected.');return;}const msg=document.getElementById('invite-msg').value.trim();settings.invite_msg=msg;try{await api('settings/save',{invite_msg:msg});}catch(e){}const nums=inv.map(c=>digitsOnly(c.phone)).filter(Boolean);window.location.href=`sms:${nums.join(',')}?body=${encodeURIComponent(msg)}`;setTimeout(()=>{document.getElementById('sms-note').style.display='block';navigator.clipboard&&navigator.clipboard.writeText(nums.map(n=>'+'+n).join(', ')).catch(()=>{});},1500);}
-function copyNumbers(){const inv=getInvited();if(!inv.length){alert('No contacts selected.');return;}const nums=inv.map(c=>'+'+digitsOnly(c.phone)).join(', ');if(navigator.clipboard)navigator.clipboard.writeText(nums).then(()=>alert(`${inv.length} numbers copied!`));else prompt('Copy:',nums);}
+var _copyNumbersPage=0;
+async function copyNumbers(page){
+  const inv=getInvited().filter(function(c){return digitsOnly(c.phone);});
+  if(!inv.length){alert('No contacts selected.');return;}
+  const PAGE=20;
+  const totalPages=Math.ceil(inv.length/PAGE);
+  if(page===undefined) page=0;
+  _copyNumbersPage=page;
+  const slice=inv.slice(page*PAGE,(page+1)*PAGE);
+  const nums=slice.map(function(c){return '+'+digitsOnly(c.phone);}).join(', ');
+  const pageLabel=totalPages>1?' ('+( page+1)+' of '+totalPages+')':'';
+  const nextInfo=page+1<totalPages?'\n\nTap "Copy numbers" again for the next '+Math.min(PAGE,inv.length-(page+1)*PAGE)+' numbers.':'';
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(nums).then(function(){
+      alert(slice.length+' numbers copied'+pageLabel+'!\n\nPaste into the To: field of your messaging app.'+nextInfo);
+      if(page+1<totalPages){
+        // Auto-advance page for next tap
+        _copyNumbersPage=page+1;
+        // Update button to show next batch
+        var btn=document.querySelector('[onclick="copyNumbers()"]');
+        if(btn) btn.textContent='📋 Copy numbers '+(page+2)+' of '+totalPages;
+      } else {
+        // Reset button
+        var btn=document.querySelector('[onclick="copyNumbers()"]');
+        if(btn) btn.textContent='📋 Copy numbers';
+        _copyNumbersPage=0;
+      }
+    });
+  } else {
+    prompt('Copy numbers'+pageLabel+':',nums);
+  }
+}
+// Override onclick to use current page
+function copyNumbersBtn(){copyNumbers(_copyNumbersPage);}
+
+async function copyMessage(){
+  // Auto-create schedule if needed
+  const dateVal=document.getElementById('invite-date')?.value||'';
+  if(!dateVal){alert('Pick a date first.');return;}
+  if(!schedule) await createScheduleFromContacts();
+  // Build message fresh with current date/time and RSVP link
+  buildInviteMsg();
+  const msg=document.getElementById('invite-msg').value;
+  if(!msg){alert('No message to copy.');return;}
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(msg).then(function(){
+      alert('Message copied! Paste it into the body of your group text.');
+    });
+  } else {
+    prompt('Copy message:',msg);
+  }
+}
 function renderStats(){
   const pl=players();const totalW=pl.reduce((s,p)=>s+(p.wins||0),0);
   document.getElementById('pills').innerHTML=`<div class="pill"><div class="pill-l">Players</div><div class="pill-v">${pl.length}</div></div><div class="pill"><div class="pill-l">Matches recorded</div><div class="pill-v">${Math.floor(totalW/2)}</div></div><div class="pill"><div class="pill-l">Contacts</div><div class="pill-v">${contacts.length}</div></div>`;
