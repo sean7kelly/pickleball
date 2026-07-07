@@ -758,7 +758,10 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
             </div>
           </div>
         </div>
-        ${adminUnlocked?('<div style="display:flex;gap:4px"><button class="btn btn-xs btn-teal" onclick="openEditContact('+c.id+')" title="Edit">✏️</button><button class="btn btn-xs btn-danger" onclick="removeContact('+c.id+')" title="Remove">✕</button></div>'):''}
+        <div style="display:flex;align-items:center;gap:6px">
+          ${c.availDays&&c.availDays.length?`<span style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:0.5px" title="Not available: ${c.availDays.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')}">${c.availDays.map(d=>['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join(' ')}</span>`:''}
+          ${adminUnlocked?`<div style="display:flex;gap:4px"><button class="btn btn-xs btn-teal" onclick="openEditContact(${c.id})" title="Edit">✏️</button><button class="btn btn-xs btn-danger" onclick="removeContact(${c.id})" title="Remove">✕</button></div>`:''}
+        </div>
       </div>
       ${adminUnlocked&&c.phone?`<div style="font-size:13px;color:var(--text2);margin:4px 0 4px"><a href="sms:${digitsOnly(c.phone)}" style="color:var(--green);text-decoration:none">📱 ${c.phone}</a></div>`:''}
       <div style="margin-bottom:6px">
@@ -1380,15 +1383,4 @@ init();
       <a id="cal-open-link" href="#" class="btn btn-teal btn-sm" target="_blank" rel="noopener">📆 Open in Calendar</a>
     </div>
     <div style="font-size:12px;color:var(--text2);line-height:1.7">
-      <strong>iPhone/iPad:</strong> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste URL<br>
-      <strong>Google Calendar:</strong> Other calendars → + → From URL → paste URL<br>
-      <strong>Outlook:</strong> Add calendar → Subscribe from web → paste URL
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeCal()">Close</button>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+      <strong>iPhone/iPad:</strong> Settings → Calen
