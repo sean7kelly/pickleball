@@ -137,20 +137,24 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 </style>
 </head>
 <body>
-<nav class="topbar">
-  <divclass="brand">
-    <img src="/sunday-s-app-icon-512.png" alt="Sunday S" style="height:34px;width:34px;border-radius:9px;display:block;">
-  </div>
-  <div class="sync-indicator" id="sync-indicator" onclick="loadAll()">
-    <div class="sync-dot" id="sync-dot"></div>
-    <span id="sync-label">Loading…</span>
-  </div>
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('schedule',this)">📅 Schedule</button>
-    <button class="tab" onclick="showTab('contacts',this)">👥 Contacts</button>
-    <button class="tab" onclick="showTab('stats',this)">📊 Stats</button>
-  </div>
-</nav>
+<div id="sync-indicator" style="display:none">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span id="sync-label">Loading…</span>
+</div>
+<div class="bottomnav">
+  <button class="bnav-tab active" onclick="showTab('schedule',this)">
+    <span class="bnav-icon">📅</span>
+    <span class="bnav-label">Schedule</span>
+  </button>
+  <button class="bnav-tab" onclick="showTab('contacts',this)">
+    <span class="bnav-icon">👥</span>
+    <span class="bnav-label">Contacts</span>
+  </button>
+  <button class="bnav-tab" onclick="showTab('stats',this)">
+    <span class="bnav-icon">📊</span>
+    <span class="bnav-label">Stats</span>
+  </button>
+</div>
 <div class="main">
 <!-- SCHEDULE TAB -->
 <div id="tab-schedule" class="section active">
@@ -1409,8 +1413,4 @@ init();
     <div class="modal-actions">
       <button class="btn" onclick="closeCal()">Close</button>
     </div>
-  </div>
-</div>
-
-</body>
-</html>
+  </div
