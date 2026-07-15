@@ -585,6 +585,7 @@ function slimSchedule(s){
   return {
     id:s.id, name:s.name||'Sunday Schedule', date:s.date||'', raw_date:s.rawDate||'',
     rounds:s.rounds||10, mode:s.mode||'auto',
+    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null,
     generated:s.generated||false, selected:s.selected||[], rsvps:s.rsvps||{},
     matches:(s.matches||[]).map(function(round){
       return {
@@ -787,12 +788,14 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
-  // Show/hide cutoff bar based on admin + schedule
+  // Show/hide cutoff bar and invite section based on admin + schedule
   var cutoffBar=document.getElementById('rsvp-cutoff-bar');
   if(cutoffBar){
     cutoffBar.style.display=(adminUnlocked&&schedule)?'flex':'none';
     if(adminUnlocked&&schedule) updateCutoffUI();
   }
+  var invSec=document.getElementById('invite-section');
+  if(invSec&&!rsvpLandingMode) invSec.style.display=(schedule?'block':'none');
   // contacts-hd updated below after sorted is built
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
