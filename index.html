@@ -1109,7 +1109,19 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   const allRounds=[];
   for(let r=0;r<ROUNDS;r++){
     let avail=[...activePlayers],sitters=[];
-    const nM=avail.filter(p=>p.gender==='M').length,nF=avail.filter(p=>p.gender==='F').length,nCourts=COURTS;
+    // Pre-place fixed matches: remove their players from avail so solver ignores them
+    var preFixed=[];
+    (fixedMatches||[]).forEach(function(fm){
+      var shouldPlay=fm.specificRounds&&fm.specificRounds.length?fm.specificRounds.includes(r+1):(fm._played||0)<(fm.count||1);
+      if(!shouldPlay)return;
+      var a=avail.find(function(p){return p.id===fm.t1p1;}),b=avail.find(function(p){return p.id===fm.t1p2;});
+      var c=avail.find(function(p){return p.id===fm.t2p1;}),d=avail.find(function(p){return p.id===fm.t2p2;});
+      if(a&&b&&c&&d){
+        preFixed.push({fm:fm,t1:[a,b],t2:[c,d]});
+        avail=avail.filter(function(p){return p.id!==a.id&&p.id!==b.id&&p.id!==c.id&&p.id!==d.id;});
+      }
+    });
+    const nM=avail.filter(p=>p.gender==='M').length,nF=avail.filter(p=>p.gender==='F').length,nCourts=Math.max(1,Math.floor(avail.length/4));
     const maxActive=Math.floor(Math.min(nCourts*4,nM+nF)/4)*4;
     let bestActive=0;
     for(let active=maxActive;active>=4;active-=4){let ok=false;for(let m=0;m<=nCourts&&!ok;m++)for(let f=0;f<=nCourts-m&&!ok;f++)for(let x=0;x<=nCourts-m-f&&!ok;x++){if(m*4+x*2>nM||f*4+x*2>nF)continue;if((m*4+x*2)+(f*4+x*2)!==active)continue;if(m+f+x===0)continue;if(mode==='mixed'&&(m>0||f>0))continue;if(mode==='gender'&&x>0)continue;ok=true;}if(ok){bestActive=active;break;}}
