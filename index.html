@@ -1125,6 +1125,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     const availM=[...avail].filter(p=>p.gender==='M').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const availF=[...avail].filter(p=>p.gender==='F').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
+    console.log('Sitters calc: nM='+nM+' nF='+nF+' plan='+mC+'M'+fC+'F'+xC+'X mNeeded='+mNeeded+' fNeeded='+fNeeded+' sitM='+sitM+' sitF='+sitF);
     sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
