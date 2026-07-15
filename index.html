@@ -343,6 +343,16 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div id="rsvp-no-schedule-bar">
       <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
+    <!-- RSVP cutoff (admin only) -->
+    <div id="rsvp-cutoff-bar" class="admin-only" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Close registration:</label>
+      <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" />
+      <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" />
+      <button class="btn btn-xs btn-danger" onclick="clearRsvpCutoff()">✕ Remove</button>
+      <span id="rsvp-cutoff-status" style="font-size:12px;color:var(--text2)"></span>
+    </div>
+    <div style="display:none">
+    </div>
 
     <!-- Step 2: Send invite (shown once schedule exists, admin only) -->
     <div id="invite-section" style="display:none">
@@ -381,6 +391,15 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
   </div>
 
   <!-- RSVP landing header (shown when opened via RSVP link) -->
+  <!-- Registration closed banner -->
+  <div id="rsvp-closed-banner" style="display:none;margin-bottom:12px">
+    <div class="card" style="text-align:center;padding:24px 20px;border:2px solid var(--red)">
+      <div style="font-size:32px;margin-bottom:8px">🔒</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px">Registration Closed</div>
+      <div style="font-size:13px;color:var(--text2)">The RSVP deadline has passed. Contact the organizer if you need to make a change.</div>
+    </div>
+  </div>
+
   <!-- RSVP phone verification screen -->
   <div id="rsvp-verify-screen" style="display:none;margin-bottom:12px">
     <div class="card" style="text-align:center;padding:24px 20px">
@@ -555,7 +574,7 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[]};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -579,7 +598,7 @@ function slimSchedule(s){
   };
 }
 function hydrateSchedule(s){const findP=id=>contacts.find(c=>c.id===id||c.id===+id)||{id,name:'?',gender:'M',dupr:3.5};return{...s,matches:(s.matches||[]).map(round=>({...round,sitters:(round.sitters||[]).map(id=>typeof id==='object'?id:findP(id)),matches:(round.matches||[]).map(m=>({...m,team1:m.team1.map(id=>typeof id==='object'?id:findP(id)),team2:m.team2.map(id=>typeof id==='object'?id:findP(id))}))}))}}
-function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{},pairs:[],fixedMatches:[]};}
+function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{},pairs:[],fixedMatches:[],rsvpCutoff:null};}
 async function loadAll(){
   setLoading();
   document.getElementById('sched-out').innerHTML='<div style="color:var(--text2);font-size:13px;padding:8px"><span class="spin"></span> Loading…</div>';
@@ -729,10 +748,17 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     const verifyScreen=document.getElementById('rsvp-verify-screen');
     const verifyTitle=document.getElementById('rsvp-landing-title-verify');
     if(!rsvpVerifiedId){
-      if(verifyScreen) verifyScreen.style.display='block';
-      if(verifyTitle&&schedule) verifyTitle.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
+      // Check if closed
+      const closedBanner=document.getElementById('rsvp-closed-banner');
+      if(isRsvpClosed()){
+        if(closedBanner) closedBanner.style.display='block';
+        if(verifyScreen) verifyScreen.style.display='none';
+      } else {
+        if(closedBanner) closedBanner.style.display='none';
+        if(verifyScreen) verifyScreen.style.display='block';
+        if(verifyTitle&&schedule) verifyTitle.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
+      }
       if(rsvpHeader) rsvpHeader.style.display='none';
-      // Hide the contact grid entirely until verified
       g.innerHTML='';
       return;
     }
@@ -859,6 +885,11 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   }).join('');
 }
 async function setRsvp(id,val){
+  // Block if registration closed
+  if(isRsvpClosed()&&!adminUnlocked){
+    alert('Registration is closed. Contact the organizer if you need to change your RSVP.');
+    return;
+  }
   // In RSVP landing mode show done button after RSVP recorded
   if(rsvpLandingMode){
     setTimeout(function(){
@@ -1457,6 +1488,55 @@ function editFixedMatch(i){
 
 async function saveFixedMatches(){try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 
+/* ── RSVP cutoff ── */
+function updateCutoffUI(){
+  if(!schedule)return;
+  const cutoffEl=document.getElementById('rsvp-cutoff-date');
+  const cutoffTimeEl=document.getElementById('rsvp-cutoff-time');
+  const statusEl=document.getElementById('rsvp-cutoff-status');
+  if(!cutoffEl)return;
+  if(schedule.rsvpCutoff){
+    const dt=new Date(schedule.rsvpCutoff);
+    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
+    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    const now=new Date();
+    const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(now>dt){
+      statusEl.textContent='🔒 Closed since '+dateStr+' at '+timeStr;
+      statusEl.style.color='var(--red)';
+    } else {
+      statusEl.textContent='Closes '+dateStr+' at '+timeStr;
+      statusEl.style.color='var(--green-dk)';
+    }
+  } else {
+    cutoffEl.value='';
+    statusEl.textContent='No cutoff set — open until you close it';
+  }
+}
+
+async function saveRsvpCutoff(){
+  if(!schedule)return;
+  const d=document.getElementById('rsvp-cutoff-date').value;
+  const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
+  schedule.rsvpCutoff=d?d+'T'+t:null;
+  updateCutoffUI();
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+}
+
+async function clearRsvpCutoff(){
+  if(!schedule)return;
+  schedule.rsvpCutoff=null;
+  document.getElementById('rsvp-cutoff-date').value='';
+  updateCutoffUI();
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+}
+
+function isRsvpClosed(){
+  if(!schedule||!schedule.rsvpCutoff)return false;
+  return new Date()>new Date(schedule.rsvpCutoff);
+}
+
 /* ── RSVP phone verification ── */
 
 function clearRsvpPhoneError(){
@@ -1464,10 +1544,64 @@ function clearRsvpPhoneError(){
 }
 
 
+/* ── RSVP cutoff ── */
+function updateCutoffUI(){
+  if(!schedule)return;
+  const cutoffEl=document.getElementById('rsvp-cutoff-date');
+  const cutoffTimeEl=document.getElementById('rsvp-cutoff-time');
+  const statusEl=document.getElementById('rsvp-cutoff-status');
+  if(!cutoffEl)return;
+  if(schedule.rsvpCutoff){
+    const dt=new Date(schedule.rsvpCutoff);
+    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
+    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    const now=new Date();
+    const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(now>dt){
+      statusEl.textContent='🔒 Closed since '+dateStr+' at '+timeStr;
+      statusEl.style.color='var(--red)';
+    } else {
+      statusEl.textContent='Closes '+dateStr+' at '+timeStr;
+      statusEl.style.color='var(--green-dk)';
+    }
+  } else {
+    cutoffEl.value='';
+    statusEl.textContent='No cutoff set — open until you close it';
+  }
+}
+
+async function saveRsvpCutoff(){
+  if(!schedule)return;
+  const d=document.getElementById('rsvp-cutoff-date').value;
+  const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
+  schedule.rsvpCutoff=d?d+'T'+t:null;
+  updateCutoffUI();
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+}
+
+async function clearRsvpCutoff(){
+  if(!schedule)return;
+  schedule.rsvpCutoff=null;
+  document.getElementById('rsvp-cutoff-date').value='';
+  updateCutoffUI();
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+}
+
+function isRsvpClosed(){
+  if(!schedule||!schedule.rsvpCutoff)return false;
+  return new Date()>new Date(schedule.rsvpCutoff);
+}
+
 /* ── RSVP phone verification ── */
 function verifyRsvpPhone(){
   const raw=document.getElementById('rsvp-phone-input').value||'';
   const digits=digitsOnly(raw);
+  // Check if registration is closed first
+  if(isRsvpClosed()){
+    alert('Sorry, registration for this session is closed.');
+    return;
+  }
   console.log('Verifying phone:', digits, 'contacts loaded:', contacts.length);
   if(!digits){document.getElementById('rsvp-phone-error').style.display='block';return;}
   const match=contacts.find(function(c){
