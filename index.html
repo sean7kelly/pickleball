@@ -702,6 +702,7 @@ async function promptRating(id){
   },400);
 }
 function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+  const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
   const pl=players();
@@ -758,7 +759,6 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     noSchedBar.style.display='block';
     document.getElementById('invite-section').style.display='none';
   }
-  const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
   // In RSVP landing mode: show all contacts sorted by name, search still works
   const searchVal=(document.getElementById('contact-search')?.value||'').toLowerCase().trim();
@@ -1444,6 +1444,31 @@ async function saveFixedMatches(){try{setSyncing();await api('schedules/save',sl
 
 /* ── RSVP phone verification ── */
 
+function clearRsvpPhoneError(){
+  document.getElementById('rsvp-phone-error').style.display='none';
+}
+
+
+/* ── RSVP phone verification ── */
+function verifyRsvpPhone(){
+  const raw=document.getElementById('rsvp-phone-input').value||'';
+  const digits=digitsOnly(raw);
+  console.log('Verifying phone:', digits, 'contacts loaded:', contacts.length);
+  if(!digits){document.getElementById('rsvp-phone-error').style.display='block';return;}
+  const match=contacts.find(function(c){
+    const cd=digitsOnly(c.phone||'');
+    return cd&&digits&&(cd.slice(-10)===digits.slice(-10));
+  });
+  console.log('Match found:', match?match.name:'NONE');
+  if(!match){
+    document.getElementById('rsvp-phone-error').style.display='block';
+    return;
+  }
+  rsvpVerifiedId=match.id;
+  document.getElementById('rsvp-verify-screen').style.display='none';
+  document.getElementById('rsvp-landing-header').style.display='block';
+  renderContacts();
+}
 function clearRsvpPhoneError(){
   document.getElementById('rsvp-phone-error').style.display='none';
 }
