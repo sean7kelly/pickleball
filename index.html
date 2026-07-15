@@ -1161,6 +1161,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
     // Track which pairs get successfully placed this round
     var pairedThisRound=new Set();
+    console.log('Round '+(r+1)+': roundPairs=',roundPairs.length,'pairs=',JSON.stringify((pairs||[]).map(function(p){return {p1:p.p1,p2:p.p2,rounds:p.rounds,_played:p._played};})));
     for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<xC;c++){const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));const result=buildMixed(avM,avF);if(!result)continue;result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
@@ -1185,16 +1186,16 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       const t2p2=activePlayers.find(function(p){return p.id===fm.t2p2;});
       console.log('FM players found:', !!t1p1, !!t1p2, !!t2p1, !!t2p2, 'ids:', fm.t1p1, fm.t1p2, fm.t2p1, fm.t2p2);
       if(t1p1&&t1p2&&t2p1&&t2p2){
-        // Remove these players from matches if already placed, then add fixed match
-        matches=matches.filter(function(m){
-          const ids=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
-          const mIds=m.team1.concat(m.team2).map(function(p){return p.id;});
-          return!mIds.some(function(id){return ids.includes(id);});
-        });
+        // Remove conflicting matches using splice, then add fixed match
+        var fixedIds=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
+        for(var mi=matches.length-1;mi>=0;mi--){
+          var mIds=matches[mi].team1.concat(matches[mi].team2).map(function(p){return p.id;});
+          if(mIds.some(function(id){return fixedIds.indexOf(id)>=0;})) matches.splice(mi,1);
+        }
         matches.push({type:'mixed',team1:[t1p1,t1p2],team2:[t2p1,t2p2],score1:'',score2:'',id:r+'fm'+(fm._played||0),recorded:false,fixed:true});
         fm._played=(fm._played||0)+1;
-        // Remove from sitters if there
-        sitters=sitters.filter(function(p){return![t1p1.id,t1p2.id,t2p1.id,t2p2.id].includes(p.id);});
+        var fixedSitIds=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
+        sitters=sitters.filter(function(p){return fixedSitIds.indexOf(p.id)<0;});
       }
     });
 
