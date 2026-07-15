@@ -1607,6 +1607,7 @@ async function clearRsvpCutoff(){
 }
 
 function isRsvpClosed(){
+  console.log('isRsvpClosed called: schedule=', schedule?schedule.id:'null', 'rsvpCutoff=', schedule?schedule.rsvpCutoff:'n/a');
   if(!schedule||!schedule.rsvpCutoff)return false;
   var dt=new Date(schedule.rsvpCutoff);
   console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
@@ -1673,6 +1674,7 @@ async function clearRsvpCutoff(){
 }
 
 function isRsvpClosed(){
+  console.log('isRsvpClosed called: schedule=', schedule?schedule.id:'null', 'rsvpCutoff=', schedule?schedule.rsvpCutoff:'n/a');
   if(!schedule||!schedule.rsvpCutoff)return false;
   var dt=new Date(schedule.rsvpCutoff);
   console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
@@ -1684,10 +1686,12 @@ function verifyRsvpPhone(){
   const raw=document.getElementById('rsvp-phone-input').value||'';
   const digits=digitsOnly(raw);
   // Check if registration is closed first
+  console.log('Checking if closed before verify...');
   if(isRsvpClosed()){
     alert('Sorry, registration for this session is closed.');
     return;
   }
+  console.log('Registration is open, proceeding with phone verify');
   console.log('Verifying phone:', digits, 'contacts loaded:', contacts.length);
   if(!digits){document.getElementById('rsvp-phone-error').style.display='block';return;}
   const match=contacts.find(function(c){
