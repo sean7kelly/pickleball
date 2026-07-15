@@ -351,8 +351,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <!-- RSVP cutoff (admin only) -->
     <div id="rsvp-cutoff-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Close registration:</label>
-      <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" />
-      <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" />
+      <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" oninput="saveRsvpCutoff()" />
+      <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" oninput="saveRsvpCutoff()" />
       <button class="btn btn-xs btn-danger" onclick="clearRsvpCutoff()">✕ Remove</button>
       <span id="rsvp-cutoff-status" style="font-size:12px;color:var(--text2)"></span>
     </div>
@@ -1588,14 +1588,16 @@ async function saveRsvpCutoff(){
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
   if(d){
-    // Store as ISO string with local timezone offset so DB stores correctly
     const dt=new Date(d+'T'+t+':00');
     schedule.rsvpCutoff=dt.toISOString();
   } else {
     schedule.rsvpCutoff=null;
   }
+  console.log('Saving cutoff:', schedule.rsvpCutoff);
+  const slim=slimSchedule(schedule);
+  console.log('slimSchedule rsvp_cutoff:', slim.rsvp_cutoff);
   updateCutoffUI();
-  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
 
 async function clearRsvpCutoff(){
@@ -1655,14 +1657,16 @@ async function saveRsvpCutoff(){
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
   if(d){
-    // Store as ISO string with local timezone offset so DB stores correctly
     const dt=new Date(d+'T'+t+':00');
     schedule.rsvpCutoff=dt.toISOString();
   } else {
     schedule.rsvpCutoff=null;
   }
+  console.log('Saving cutoff:', schedule.rsvpCutoff);
+  const slim=slimSchedule(schedule);
+  console.log('slimSchedule rsvp_cutoff:', slim.rsvp_cutoff);
   updateCutoffUI();
-  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
 
 async function clearRsvpCutoff(){
@@ -1773,6 +1777,13 @@ async function init(){
       if(el){
         el.addEventListener('change',function(){renderContacts();});
         el.addEventListener('input',function(){renderContacts();});
+      }
+    });
+    ['rsvp-cutoff-date','rsvp-cutoff-time'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){
+        el.addEventListener('change',function(){saveRsvpCutoff();});
+        el.addEventListener('input',function(){saveRsvpCutoff();});
       }
     });
   }, 100);
