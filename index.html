@@ -1203,6 +1203,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   return allRounds;
 }
 async function genSchedule(){
+  console.log('genSchedule called, schedule:', schedule?schedule.id:'null', 'selected:', schedule?schedule.selected:[]);
   const sel=schedule?schedule.selected:[];
   if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
   document.getElementById('sched-alert').innerHTML='';
