@@ -214,6 +214,14 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div id="pairs-list" style="display:flex;flex-direction:column;gap:6px"></div>
       <button class="btn btn-sm btn-teal" onclick="addPair()" style="margin-top:6px">+ Add pair</button>
     </div>
+    <!-- Fixed matches -->
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">
+        Fixed matches <span style="font-weight:400">(guarantee specific match-ups regardless of randomization)</span>
+      </label>
+      <div id="fixed-matches-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button class="btn btn-sm btn-teal" onclick="addFixedMatch()" style="margin-top:6px">+ Add fixed match</button>
+    </div>
     <div class="card-title">Who's playing?</div>
     <div class="tgrid" id="toggles"></div>
     <div id="sel-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
@@ -347,8 +355,16 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         <textarea id="invite-msg" rows="5" style="height:auto;padding:8px 10px;resize:vertical;font-size:13px;line-height:1.6"></textarea>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <button class="btn btn-primary" onclick="copyNumbersBtn()">📋 Copy numbers</button>
-        <button class="btn btn-teal" onclick="copyMessage()">📋 Copy message</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="copy-rsvp-filter" style="height:36px;width:150px">
+            <option value="all">All invited</option>
+            <option value="yes">In only</option>
+            <option value="no">Out only</option>
+            <option value="none">No response yet</option>
+          </select>
+          <button class="btn btn-primary" onclick="copyNumbersBtn()">📋 Copy numbers</button>
+          <button class="btn btn-teal" onclick="copyMessage()">📋 Copy message</button>
+        </div>
         <span id="contact-count" style="font-size:12px;color:var(--text2)"></span>
       </div>
       <div id="rsvp-link-section" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
@@ -365,15 +381,32 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
   </div>
 
   <!-- RSVP landing header (shown when opened via RSVP link) -->
+  <!-- RSVP phone verification screen -->
+  <div id="rsvp-verify-screen" style="display:none;margin-bottom:12px">
+    <div class="card" style="text-align:center;padding:24px 20px">
+      <div style="font-size:32px;margin-bottom:8px">🏓</div>
+      <div id="rsvp-landing-title-verify" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px">Enter your phone number to RSVP</div>
+      <div style="max-width:280px;margin:0 auto">
+        <input type="tel" id="rsvp-phone-input" placeholder="Your phone number"
+          style="width:100%;text-align:center;font-size:16px;letter-spacing:.05em;margin-bottom:10px"
+          oninput="clearRsvpPhoneError()" />
+        <div id="rsvp-phone-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none">
+          Phone number not found. Check the number and try again.
+        </div>
+        <button class="btn btn-primary" onclick="verifyRsvpPhone()" style="width:100%;justify-content:center">
+          Continue →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RSVP confirmed contact card (shown after phone verified) -->
   <div id="rsvp-landing-header" style="display:none;margin-bottom:12px">
     <div class="card" style="text-align:center;padding:16px">
       <div style="font-size:24px;margin-bottom:6px">🏓</div>
-      <div class="rsvp-landing-title" style="font-size:18px;font-weight:700;margin-bottom:6px"></div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Find your name and tap ✓ In or ✕ Out</div>
-      <div id="rsvp-landing-search" style="max-width:300px;margin:0 auto">
-        <input type="text" id="rsvp-search-input" placeholder="🔍 Search your name…" 
-          style="width:100%;text-align:left" oninput="renderContacts()" />
-      </div>
+      <div class="rsvp-landing-title" style="font-size:18px;font-weight:700;margin-bottom:4px"></div>
+      <div style="font-size:13px;color:var(--text2)">Tap ✓ In or ✕ Out below</div>
     </div>
   </div>
 
@@ -512,13 +545,13 @@ function setSyncing(){document.getElementById('sync-dot').className='sync-dot sy
 function setSynced(){document.getElementById('sync-dot').className='sync-dot';document.getElementById('sync-label').textContent='Synced ✓';}
 function setSyncErr(){document.getElementById('sync-dot').className='sync-dot error';document.getElementById('sync-label').textContent='Sync error — tap to retry';}
 function setLoading(){document.getElementById('sync-dot').className='sync-dot syncing';document.getElementById('sync-label').textContent='Loading…';}
-let contacts=[],schedules=[],schedule=null,rsvpLandingMode=false;
+let contacts=[],schedules=[],schedule=null,rsvpLandingMode=false,rsvpVerifiedId=null;
 let settings={pin_hash:'',invite_msg:"Hey everyone! Pickleball this Sunday — who's in? Reply YES to be added to the schedule, NO if you can't make it. See you there! 🏓"};
 const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[]};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[]};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -542,7 +575,7 @@ function slimSchedule(s){
   };
 }
 function hydrateSchedule(s){const findP=id=>contacts.find(c=>c.id===id||c.id===+id)||{id,name:'?',gender:'M',dupr:3.5};return{...s,matches:(s.matches||[]).map(round=>({...round,sitters:(round.sitters||[]).map(id=>typeof id==='object'?id:findP(id)),matches:(round.matches||[]).map(m=>({...m,team1:m.team1.map(id=>typeof id==='object'?id:findP(id)),team2:m.team2.map(id=>typeof id==='object'?id:findP(id))}))}))}}
-function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{},pairs:[]};}
+function newScheduleObj(name){return{id:Date.now(),name:name||'Sunday Schedule',date:'',selected:[],matches:[],generated:false,rounds:10,mode:'auto',rsvps:{},pairs:[],fixedMatches:[]};}
 async function loadAll(){
   setLoading();
   document.getElementById('sched-out').innerHTML='<div style="color:var(--text2);font-size:13px;padding:8px"><span class="spin"></span> Loading…</div>';
@@ -684,11 +717,21 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     if(adminCard) adminCard.style.display='none';
     if(filterBar) filterBar.style.display='none';
     if(lockBar) lockBar.style.display='none';
-    // admin-rsvp-btns and admin-select-bar hidden via admin-only class
-    // Hide the entire invite/tracking card
     document.querySelectorAll('.card').forEach(function(c){
       if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
     });
+    // Show verify screen if not yet verified
+    const verifyScreen=document.getElementById('rsvp-verify-screen');
+    const verifyTitle=document.getElementById('rsvp-landing-title-verify');
+    if(!rsvpVerifiedId){
+      if(verifyScreen) verifyScreen.style.display='block';
+      if(verifyTitle&&schedule) verifyTitle.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
+      if(rsvpHeader) rsvpHeader.style.display='none';
+      // Hide the contact grid entirely until verified
+      g.innerHTML='';
+      return;
+    }
+    if(verifyScreen) verifyScreen.style.display='none';
     if(rsvpHeader) rsvpHeader.style.display='block';
     if(rsvpHeader&&schedule) rsvpHeader.querySelector('.rsvp-landing-title').textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
   } else {
@@ -718,12 +761,13 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   const g=document.getElementById('contact-grid');
   if(!contacts.length){g.innerHTML='<div class="empty"><div class="ei">👥</div>No contacts yet. Unlock and add some!</div>';return;}
   // In RSVP landing mode: show all contacts sorted by name, search still works
-  const searchVal=((rsvpLandingMode?document.getElementById('rsvp-search-input'):document.getElementById('contact-search'))?.value||'').toLowerCase().trim();
+  const searchVal=(document.getElementById('contact-search')?.value||'').toLowerCase().trim();
   const genderFilter=rsvpLandingMode?'':(document.getElementById('contact-gender-filter')?.value||'');
   const sortMode=rsvpLandingMode?'name':(document.getElementById('contact-sort')?.value||'name');
   let filtered=[...contacts];
-  // In RSVP landing mode only show invited contacts (checkbox selected)
-  if(rsvpLandingMode) filtered=filtered.filter(c=>c.invited!==false);
+  // In RSVP landing mode only show the verified contact
+  if(rsvpLandingMode&&rsvpVerifiedId) filtered=filtered.filter(function(c){return c.id===rsvpVerifiedId;});
+  else if(rsvpLandingMode) filtered=[];
   if(searchVal) filtered=filtered.filter(c=>c.name.toLowerCase().includes(searchVal));
   if(genderFilter) filtered=filtered.filter(c=>c.gender===genderFilter);
   // Availability filter
@@ -942,12 +986,14 @@ function renderToggles(){
   document.getElementById('toggles').innerHTML=pl.map(p=>`<button class="ptog ${schedule&&schedule.selected.includes(p.id)?'on':''}" onclick="togP(${p.id})">${p.name} <span class="g">${p.gender} ${p.dupr.toFixed(1)}</span></button>`).join('');
   updateSelInfo();
   renderPairs();
+  renderFixedMatches();
 }
 async function togP(id){if(!schedule)return;const i=schedule.selected.indexOf(id);if(i>-1)schedule.selected.splice(i,1);else schedule.selected.push(id);renderToggles();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function updateSelInfo(){const pl=(schedule?schedule.selected:[]).map(id=>contacts.find(c=>c.id===id)).filter(Boolean);document.getElementById('sel-info').textContent=`${pl.length} selected · ${pl.filter(p=>p.gender==='M').length} men · ${pl.filter(p=>p.gender==='F').length} women`;}
-function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
+function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   // Reset runtime play counters (not persisted)
   (pairs||[]).forEach(function(p){p._played=0;});
+  (fixedMatches||[]).forEach(function(fm){fm._played=0;});
   const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
@@ -1053,6 +1099,31 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs){
         fp._played=(fp._played||0)+1;
       }
     });
+
+    // Inject fixed matches for this round
+    (fixedMatches||[]).forEach(function(fm){
+      const shouldPlay=fm.specificRounds&&fm.specificRounds.length
+        ? fm.specificRounds.includes(r+1)
+        : (fm._played||0)<(fm.count||1);
+      if(!shouldPlay)return;
+      const t1p1=activePlayers.find(function(p){return p.id===fm.t1p1;});
+      const t1p2=activePlayers.find(function(p){return p.id===fm.t1p2;});
+      const t2p1=activePlayers.find(function(p){return p.id===fm.t2p1;});
+      const t2p2=activePlayers.find(function(p){return p.id===fm.t2p2;});
+      if(t1p1&&t1p2&&t2p1&&t2p2){
+        // Remove these players from matches if already placed, then add fixed match
+        matches=matches.filter(function(m){
+          const ids=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
+          const mIds=m.team1.concat(m.team2).map(function(p){return p.id;});
+          return!mIds.some(function(id){return ids.includes(id);});
+        });
+        matches.push({type:'mixed',team1:[t1p1,t1p2],team2:[t2p1,t2p2],score1:'',score2:'',id:r+'fm'+(fm._played||0),recorded:false,fixed:true});
+        fm._played=(fm._played||0)+1;
+        // Remove from sitters if there
+        sitters=sitters.filter(function(p){return![t1p1.id,t1p2.id,t2p1.id,t2p2.id].includes(p.id);});
+      }
+    });
+
     allRounds.push({round:r+1,matches,sitters});
   }
   return allRounds;
@@ -1063,7 +1134,7 @@ async function genSchedule(){
   document.getElementById('sched-alert').innerHTML='';
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[]);
+  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
   schedule.generated=true;
   schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
@@ -1072,7 +1143,7 @@ async function genSchedule(){
 function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[]);
+  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
@@ -1297,6 +1368,85 @@ async function deleteOldSchedules(){
   alert(old.length + ' past schedule' + (old.length!==1?'s':'') + ' deleted.');
 }
 
+
+/* ── fixed matches ── */
+function renderFixedMatches(){
+  const list=document.getElementById('fixed-matches-list');
+  if(!list||!schedule)return;
+  const fms=schedule.fixedMatches||[];
+  const pl=(schedule.selected||[]).map(function(id){return contacts.find(function(c){return c.id===id;});}).filter(Boolean);
+  if(!fms.length){list.innerHTML='<div style="font-size:12px;color:var(--text2)">No fixed matches set.</div>';return;}
+  list.innerHTML=fms.map(function(fm,i){
+    const t1p1=contacts.find(function(c){return c.id===fm.t1p1;}),t1p2=contacts.find(function(c){return c.id===fm.t1p2;});
+    const t2p1=contacts.find(function(c){return c.id===fm.t2p1;}),t2p2=contacts.find(function(c){return c.id===fm.t2p2;});
+    if(!t1p1||!t1p2||!t2p1||!t2p2)return'';
+    const roundsInfo=fm.specificRounds&&fm.specificRounds.length?'Rounds '+fm.specificRounds.join(', '):'Any '+fm.count+' round'+(fm.count!==1?'s':'');
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px">'+
+      '<div style="font-size:13px;font-weight:700;margin-bottom:4px">'+t1p1.name+' & '+t1p2.name+' <span style="color:var(--text2);font-weight:400">vs</span> '+t2p1.name+' & '+t2p2.name+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<span style="font-size:12px;color:var(--text2)">'+roundsInfo+'</span>'+
+      '<button class="btn btn-xs" onclick="editFixedMatch('+i+')">✏️ Edit</button>'+
+      '<button class="btn btn-xs btn-danger" onclick="removeFixedMatch('+i+')" style="margin-left:auto">✕</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+function addFixedMatch(){
+  if(!schedule)return;
+  const pl=(schedule.selected||[]).map(function(id){return contacts.find(function(c){return c.id===id;});}).filter(Boolean);
+  if(pl.length<4){alert('Need at least 4 players selected.');return;}
+  if(!schedule.fixedMatches)schedule.fixedMatches=[];
+  const nameList=pl.map(function(p,i){return i+': '+p.name;}).join(', ');
+  const i1=parseInt(prompt('Team 1 - Player 1 ('+nameList+'):'));
+  if(isNaN(i1)||!pl[i1])return;
+  const i2=parseInt(prompt('Team 1 - Player 2 ('+nameList+'):'));
+  if(isNaN(i2)||!pl[i2]||i2===i1)return;
+  const i3=parseInt(prompt('Team 2 - Player 1 ('+nameList+'):'));
+  if(isNaN(i3)||!pl[i3]||i3===i1||i3===i2)return;
+  const i4=parseInt(prompt('Team 2 - Player 2 ('+nameList+'):'));
+  if(isNaN(i4)||!pl[i4]||i4===i1||i4===i2||i4===i3)return;
+  const useSpecific=confirm('Play on specific round numbers?\n\nOK = pick specific rounds\nCancel = just pick how many times');
+  var specificRounds=[],count=1;
+  if(useSpecific){
+    const rStr=prompt('Enter round numbers separated by commas (e.g. 1,3,5):','1,3');
+    if(!rStr)return;
+    specificRounds=rStr.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return!isNaN(n)&&n>=1;});
+    count=specificRounds.length;
+  } else {
+    count=parseInt(prompt('How many times should this match happen?','2'));
+    if(isNaN(count)||count<1)return;
+  }
+  schedule.fixedMatches.push({t1p1:pl[i1].id,t1p2:pl[i2].id,t2p1:pl[i3].id,t2p2:pl[i4].id,count,specificRounds});
+  renderFixedMatches();
+  saveFixedMatches();
+}
+
+function removeFixedMatch(i){if(!schedule||!schedule.fixedMatches)return;schedule.fixedMatches.splice(i,1);renderFixedMatches();saveFixedMatches();}
+
+function editFixedMatch(i){
+  if(!schedule||!schedule.fixedMatches)return;
+  const fm=schedule.fixedMatches[i];
+  const useSpecific=confirm('Use specific round numbers?\n\nOK = specific rounds\nCancel = just a count');
+  if(useSpecific){
+    const rStr=prompt('Round numbers (comma separated):',fm.specificRounds&&fm.specificRounds.length?fm.specificRounds.join(','):'1');
+    if(!rStr)return;
+    fm.specificRounds=rStr.split(',').map(function(s){return parseInt(s.trim());}).filter(function(n){return!isNaN(n)&&n>=1;});
+    fm.count=fm.specificRounds.length;
+  } else {
+    const c=parseInt(prompt('How many times?',String(fm.count||1)));
+    if(isNaN(c)||c<1)return;
+    fm.count=c;fm.specificRounds=[];
+  }
+  renderFixedMatches();saveFixedMatches();
+}
+
+async function saveFixedMatches(){try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+
+/* ── RSVP phone verification ── */
+
+function clearRsvpPhoneError(){
+  document.getElementById('rsvp-phone-error').style.display='none';
+}
 
 /* ── forced pairs ── */
 function renderPairs(){
