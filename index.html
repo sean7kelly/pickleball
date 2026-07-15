@@ -859,6 +859,17 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   }).join('');
 }
 async function setRsvp(id,val){
+  // In RSVP landing mode show done button after RSVP recorded
+  if(rsvpLandingMode){
+    setTimeout(function(){
+      const doneWrap=document.getElementById('rsvp-done-wrap');
+      const tapHint=document.getElementById('rsvp-tap-hint');
+      const doneMsg=document.getElementById('rsvp-done-msg');
+      if(doneWrap) doneWrap.style.display='block';
+      if(tapHint) tapHint.style.display='none';
+      if(doneMsg) doneMsg.textContent=val==='yes'?'You\'re In! See you on the court 🎉':'Got it — you\'re marked Out.';
+    },400);
+  }
   const c=contacts.find(x=>x.id===id);if(!c)return;
   if(!schedule){alert('Pick a date first to track RSVPs.');return;}
   if(!schedule.rsvps)schedule.rsvps={};
