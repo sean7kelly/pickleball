@@ -1563,8 +1563,10 @@ function updateCutoffUI(){
   if(!cutoffEl)return;
   if(schedule.rsvpCutoff){
     const dt=new Date(schedule.rsvpCutoff);
-    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
-    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    // Convert to local date/time for display
+    const localISO=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString();
+    cutoffEl.value=localISO.slice(0,10);
+    cutoffTimeEl.value=localISO.slice(11,16)||'23:59';
     const now=new Date();
     const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
@@ -1585,7 +1587,13 @@ async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
-  schedule.rsvpCutoff=d?d+'T'+t:null;
+  if(d){
+    // Store as ISO string with local timezone offset so DB stores correctly
+    const dt=new Date(d+'T'+t+':00');
+    schedule.rsvpCutoff=dt.toISOString();
+  } else {
+    schedule.rsvpCutoff=null;
+  }
   updateCutoffUI();
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
@@ -1600,11 +1608,8 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  // Parse cutoff - stored as "YYYY-MM-DDTHH:MM" local time
-  var cutoff=schedule.rsvpCutoff;
-  // If no timezone info, treat as local time
-  var dt=cutoff.includes('Z')||cutoff.includes('+')?new Date(cutoff):new Date(cutoff.replace('T',' '));
-  console.log('Cutoff check:', cutoff, '-> dt:', dt, 'now:', new Date(), 'closed:', new Date()>dt);
+  var dt=new Date(schedule.rsvpCutoff);
+  console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
   return new Date()>dt;
 }
 
@@ -1624,8 +1629,10 @@ function updateCutoffUI(){
   if(!cutoffEl)return;
   if(schedule.rsvpCutoff){
     const dt=new Date(schedule.rsvpCutoff);
-    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
-    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    // Convert to local date/time for display
+    const localISO=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString();
+    cutoffEl.value=localISO.slice(0,10);
+    cutoffTimeEl.value=localISO.slice(11,16)||'23:59';
     const now=new Date();
     const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
@@ -1646,7 +1653,13 @@ async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
-  schedule.rsvpCutoff=d?d+'T'+t:null;
+  if(d){
+    // Store as ISO string with local timezone offset so DB stores correctly
+    const dt=new Date(d+'T'+t+':00');
+    schedule.rsvpCutoff=dt.toISOString();
+  } else {
+    schedule.rsvpCutoff=null;
+  }
   updateCutoffUI();
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
@@ -1661,11 +1674,8 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  // Parse cutoff - stored as "YYYY-MM-DDTHH:MM" local time
-  var cutoff=schedule.rsvpCutoff;
-  // If no timezone info, treat as local time
-  var dt=cutoff.includes('Z')||cutoff.includes('+')?new Date(cutoff):new Date(cutoff.replace('T',' '));
-  console.log('Cutoff check:', cutoff, '-> dt:', dt, 'now:', new Date(), 'closed:', new Date()>dt);
+  var dt=new Date(schedule.rsvpCutoff);
+  console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
   return new Date()>dt;
 }
 
