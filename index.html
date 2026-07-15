@@ -343,6 +343,11 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div id="rsvp-no-schedule-bar">
       <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
+    <!-- Multiple schedules on same date picker -->
+    <div id="rsvp-multi-picker" style="display:none;margin-top:8px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Multiple schedules found — pick one:</label>
+      <select id="rsvp-multi-select" style="width:100%;height:36px"></select>
+    </div>
     <!-- RSVP cutoff (admin only) -->
     <div id="rsvp-cutoff-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Close registration:</label>
@@ -742,8 +747,11 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     if(adminCard) adminCard.style.display='none';
     if(filterBar) filterBar.style.display='none';
     if(lockBar) lockBar.style.display='none';
+    // In RSVP landing mode hide the invite/tracking card
     document.querySelectorAll('.card').forEach(function(c){
-      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
+      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#rsvp-no-schedule-bar')){
+        c.style.display='none';
+      }
     });
     // Show verify screen if not yet verified
     const verifyScreen=document.getElementById('rsvp-verify-screen');
@@ -768,6 +776,12 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     if(rsvpHeader&&schedule) rsvpHeader.querySelector('.rsvp-landing-title').textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
   } else {
     if(rsvpHeader) rsvpHeader.style.display='none';
+    // Restore any cards that may have been hidden by previous RSVP landing mode
+    document.querySelectorAll('.card').forEach(function(c){
+      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#rsvp-no-schedule-bar')){
+        if(c.style.display==='none') c.style.display='';
+      }
+    });
   }
 
   const invited=contacts.filter(c=>c.invited!==false);
@@ -1253,21 +1267,55 @@ function onInviteDateChange(){
   if(!dateVal){buildInviteMsg();return;}
   var d=new Date(dateVal+'T12:00:00');
   var dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var existing=schedules.find(function(s){return s.date===dateStr||s.rawDate===dateVal;});
+  var matches=schedules.filter(function(s){return s.date===dateStr||s.rawDate===dateVal;});
   var schedBar=document.getElementById('rsvp-schedule-bar');
   var noSchedBar=document.getElementById('rsvp-no-schedule-bar');
   var nameEl=document.getElementById('rsvp-schedule-name');
-  if(existing){
-    schedule=existing;
-    if(schedBar) schedBar.style.display='flex';
-    if(noSchedBar) noSchedBar.style.display='none';
-    if(nameEl) nameEl.textContent=existing.name+(existing.date?' · '+existing.date:'');
-    updateRsvpLinkSection();
-  } else {
+  var multiPicker=document.getElementById('rsvp-multi-picker');
+
+  if(matches.length===0){
     if(schedBar) schedBar.style.display='none';
     if(noSchedBar) noSchedBar.style.display='block';
+    if(multiPicker) multiPicker.style.display='none';
+    var invSec=document.getElementById('invite-section');
+    if(invSec) invSec.style.display='none';
+  } else if(matches.length===1){
+    if(multiPicker) multiPicker.style.display='none';
+    selectInviteSchedule(matches[0].id);
+  } else {
+    // Multiple schedules on same date - show picker
+    if(schedBar) schedBar.style.display='none';
+    if(noSchedBar) noSchedBar.style.display='none';
+    if(multiPicker){
+      multiPicker.style.display='block';
+      var sel=document.getElementById('rsvp-multi-select');
+      if(sel){
+        sel.innerHTML=matches.map(function(s){
+          return '<option value="'+s.id+'">'+s.name+(s.date?' — '+s.date:'')+'</option>';
+        }).join('');
+        sel.onchange=function(){selectInviteSchedule(+sel.value);};
+        selectInviteSchedule(matches[0].id);
+      }
+    }
   }
   buildInviteMsg();
+}
+
+function selectInviteSchedule(id){
+  var s=schedules.find(function(x){return x.id===id;});
+  if(!s)return;
+  schedule=s;
+  var schedBar=document.getElementById('rsvp-schedule-bar');
+  var noSchedBar=document.getElementById('rsvp-no-schedule-bar');
+  var nameEl=document.getElementById('rsvp-schedule-name');
+  if(schedBar) schedBar.style.display='flex';
+  if(noSchedBar) noSchedBar.style.display='none';
+  if(nameEl) nameEl.textContent=s.name+(s.date?' · '+s.date:'');
+  var invSec=document.getElementById('invite-section');
+  if(invSec) invSec.style.display='block';
+  updateRsvpLinkSection();
+  buildInviteMsg();
+  renderContacts();
 }
 function buildInviteMsg(){
   var invDateEl=document.getElementById('invite-date');
@@ -1549,7 +1597,12 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  return new Date()>new Date(schedule.rsvpCutoff);
+  // Parse cutoff - stored as "YYYY-MM-DDTHH:MM" local time
+  var cutoff=schedule.rsvpCutoff;
+  // If no timezone info, treat as local time
+  var dt=cutoff.includes('Z')||cutoff.includes('+')?new Date(cutoff):new Date(cutoff.replace('T',' '));
+  console.log('Cutoff check:', cutoff, '-> dt:', dt, 'now:', new Date(), 'closed:', new Date()>dt);
+  return new Date()>dt;
 }
 
 /* ── RSVP phone verification ── */
@@ -1605,7 +1658,12 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  return new Date()>new Date(schedule.rsvpCutoff);
+  // Parse cutoff - stored as "YYYY-MM-DDTHH:MM" local time
+  var cutoff=schedule.rsvpCutoff;
+  // If no timezone info, treat as local time
+  var dt=cutoff.includes('Z')||cutoff.includes('+')?new Date(cutoff):new Date(cutoff.replace('T',' '));
+  console.log('Cutoff check:', cutoff, '-> dt:', dt, 'now:', new Date(), 'closed:', new Date()>dt);
+  return new Date()>dt;
 }
 
 /* ── RSVP phone verification ── */
