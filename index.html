@@ -1187,16 +1187,39 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       const t2p2=activePlayers.find(function(p){return p.id===fm.t2p2;});
       console.log('FM players found:', !!t1p1, !!t1p2, !!t2p1, !!t2p2, 'ids:', fm.t1p1, fm.t1p2, fm.t2p1, fm.t2p2);
       if(t1p1&&t1p2&&t2p1&&t2p2){
-        // Remove conflicting matches using splice, then add fixed match
         var fixedIds=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
+        var displaced=[];
         for(var mi=matches.length-1;mi>=0;mi--){
-          var mIds=matches[mi].team1.concat(matches[mi].team2).map(function(p){return p.id;});
-          if(mIds.some(function(id){return fixedIds.indexOf(id)>=0;})) matches.splice(mi,1);
+          var mm=matches[mi];
+          var mIds=mm.team1.concat(mm.team2).map(function(p){return p.id;});
+          if(mIds.some(function(id){return fixedIds.indexOf(id)>=0;})){
+            // Collect players from this match that are NOT in the fixed match
+            mm.team1.concat(mm.team2).forEach(function(p){
+              if(fixedIds.indexOf(p.id)<0) displaced.push(p);
+            });
+            matches.splice(mi,1);
+          }
         }
+        // Add the fixed match
         matches.push({type:'mixed',team1:[t1p1,t1p2],team2:[t2p1,t2p2],score1:'',score2:'',id:r+'fm'+(fm._played||0),recorded:false,fixed:true});
         fm._played=(fm._played||0)+1;
-        var fixedSitIds=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
-        sitters=sitters.filter(function(p){return fixedSitIds.indexOf(p.id)<0;});
+        // Try to pair displaced players into a new court
+        if(displaced.length===4){
+          var dm=displaced.filter(function(p){return p.gender==='M';}),df=displaced.filter(function(p){return p.gender==='F';});
+          if(dm.length>=2&&df.length>=2&&mode!=='gender'){
+            matches.push({type:'mixed',team1:[dm[0],df[0]],team2:[dm[1]||df[1],df[1]||dm[1]],score1:'',score2:'',id:r+'fx'+mi,recorded:false});
+          } else if(dm.length===4){
+            matches.push({type:'mens',team1:[dm[0],dm[1]],team2:[dm[2],dm[3]],score1:'',score2:'',id:r+'fx'+mi,recorded:false});
+          } else if(df.length===4){
+            matches.push({type:'womens',team1:[df[0],df[1]],team2:[df[2],df[3]],score1:'',score2:'',id:r+'fx'+mi,recorded:false});
+          } else {
+            displaced.forEach(function(p){sitters.push(p);});
+          }
+        } else if(displaced.length>0){
+          displaced.forEach(function(p){sitters.push(p);});
+        }
+        // Remove fixed match players from sitters
+        sitters=sitters.filter(function(p){return fixedIds.indexOf(p.id)<0;});
       }
     });
 
