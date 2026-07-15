@@ -773,6 +773,12 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
+  // Show/hide cutoff bar based on admin + schedule
+  var cutoffBar=document.getElementById('rsvp-cutoff-bar');
+  if(cutoffBar){
+    cutoffBar.style.display=(adminUnlocked&&schedule)?'flex':'none';
+    if(adminUnlocked&&schedule) updateCutoffUI();
+  }
   // contacts-hd updated below after sorted is built
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
