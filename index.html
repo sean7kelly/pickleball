@@ -1125,7 +1125,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     const availM=[...avail].filter(p=>p.gender==='M').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const availF=[...avail].filter(p=>p.gender==='F').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
-    console.log('Sitters calc: nM='+nM+' nF='+nF+' plan='+mC+'M'+fC+'F'+xC+'X mNeeded='+mNeeded+' fNeeded='+fNeeded+' sitM='+sitM+' sitF='+sitF);
     sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
@@ -1162,7 +1161,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
     // Track which pairs get successfully placed this round
     var pairedThisRound=new Set();
-    console.log('Round '+(r+1)+': roundPairs=',roundPairs.length,'pairs=',JSON.stringify((pairs||[]).map(function(p){return {p1:p.p1,p2:p.p2,rounds:p.rounds,_played:p._played};})));
     for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
     for(let c=0;c<xC;c++){const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));const result=buildMixed(avM,avF);if(!result)continue;result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
@@ -1174,18 +1172,15 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     });
 
     // Inject fixed matches for this round
-    console.log('Round '+(r+1)+': checking',fixedMatches?fixedMatches.length:0,'fixed matches');
     (fixedMatches||[]).forEach(function(fm){
       const shouldPlay=fm.specificRounds&&fm.specificRounds.length
         ? fm.specificRounds.includes(r+1)
         : (fm._played||0)<(fm.count||1);
-      console.log('FM check: shouldPlay=',shouldPlay,'specificRounds=',fm.specificRounds,'r+1=',(r+1),'count=',fm.count,'_played=',fm._played);
       if(!shouldPlay)return;
       const t1p1=activePlayers.find(function(p){return p.id===fm.t1p1;});
       const t1p2=activePlayers.find(function(p){return p.id===fm.t1p2;});
       const t2p1=activePlayers.find(function(p){return p.id===fm.t2p1;});
       const t2p2=activePlayers.find(function(p){return p.id===fm.t2p2;});
-      console.log('FM players found:', !!t1p1, !!t1p2, !!t2p1, !!t2p2, 'ids:', fm.t1p1, fm.t1p2, fm.t2p1, fm.t2p2);
       if(t1p1&&t1p2&&t2p1&&t2p2){
         var fixedIds=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
         var displaced=[];
@@ -1228,7 +1223,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   return allRounds;
 }
 async function genSchedule(){
-  console.log('genSchedule called, schedule:', schedule?schedule.id:'null', 'selected:', schedule?schedule.selected:[]);
   const sel=schedule?schedule.selected:[];
   if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
   document.getElementById('sched-alert').innerHTML='';
@@ -1254,7 +1248,6 @@ function renderSchedule(){
   const out=document.getElementById('sched-out');
   const backBar=document.getElementById('sched-back-bar');
   const viewName=document.getElementById('sched-view-name');
-  console.log('renderSchedule: schedule=',schedule?schedule.name:'null', 'generated=',schedule?.generated, 'matches=',schedule?.matches?.length);
   if(schedule&&backBar){backBar.style.display='flex';backBar.style.alignItems='center';}
   if(!schedule&&backBar){backBar.style.display='none';}
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
@@ -1644,9 +1637,6 @@ async function saveRsvpCutoff(){
   } else {
     schedule.rsvpCutoff=null;
   }
-  console.log('Saving cutoff:', schedule.rsvpCutoff);
-  const slim=slimSchedule(schedule);
-  console.log('slimSchedule rsvp_cutoff:', slim.rsvp_cutoff);
   updateCutoffUI();
   try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
@@ -1660,10 +1650,8 @@ async function clearRsvpCutoff(){
 }
 
 function isRsvpClosed(){
-  console.log('isRsvpClosed called: schedule=', schedule?schedule.id:'null', 'rsvpCutoff=', schedule?schedule.rsvpCutoff:'n/a');
   if(!schedule||!schedule.rsvpCutoff)return false;
   var dt=new Date(schedule.rsvpCutoff);
-  console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
   return new Date()>dt;
 }
 
@@ -1728,9 +1716,6 @@ async function saveRsvpCutoff(){
   } else {
     schedule.rsvpCutoff=null;
   }
-  console.log('Saving cutoff:', schedule.rsvpCutoff);
-  const slim=slimSchedule(schedule);
-  console.log('slimSchedule rsvp_cutoff:', slim.rsvp_cutoff);
   updateCutoffUI();
   try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
@@ -1744,10 +1729,8 @@ async function clearRsvpCutoff(){
 }
 
 function isRsvpClosed(){
-  console.log('isRsvpClosed called: schedule=', schedule?schedule.id:'null', 'rsvpCutoff=', schedule?schedule.rsvpCutoff:'n/a');
   if(!schedule||!schedule.rsvpCutoff)return false;
   var dt=new Date(schedule.rsvpCutoff);
-  console.log('Cutoff:', schedule.rsvpCutoff, 'Parsed:', dt.toLocaleString(), 'Now:', new Date().toLocaleString(), 'Closed:', new Date()>dt);
   return new Date()>dt;
 }
 
@@ -1771,19 +1754,15 @@ function verifyRsvpPhone(){
   const raw=document.getElementById('rsvp-phone-input').value||'';
   const digits=digitsOnly(raw);
   // Check if registration is closed first
-  console.log('Checking if closed before verify...');
   if(isRsvpClosed()){
     alert('Sorry, registration for this session is closed.');
     return;
   }
-  console.log('Registration is open, proceeding with phone verify');
-  console.log('Verifying phone:', digits, 'contacts loaded:', contacts.length);
   if(!digits){document.getElementById('rsvp-phone-error').style.display='block';return;}
   const match=contacts.find(function(c){
     const cd=digitsOnly(c.phone||'');
     return cd&&digits&&(cd.slice(-10)===digits.slice(-10));
   });
-  console.log('Match found:', match?match.name:'NONE');
   if(!match){
     document.getElementById('rsvp-phone-error').style.display='block';
     return;
