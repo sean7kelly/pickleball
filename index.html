@@ -344,7 +344,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
     <!-- RSVP cutoff (admin only) -->
-    <div id="rsvp-cutoff-bar" class="admin-only" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
+    <div id="rsvp-cutoff-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Close registration:</label>
       <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" />
       <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" />
@@ -645,6 +645,7 @@ function unlockAdmin(){
   renderContacts();
   renderScheduleList();
   renderToggles();
+  updateRsvpLinkSection();
 }
 function lockAdmin(){
   adminUnlocked=false;
@@ -1367,12 +1368,20 @@ function copyCal(){
 }
 function updateRsvpLinkSection(){
   var section = document.getElementById('rsvp-link-section');
+  var cutoffBar = document.getElementById('rsvp-cutoff-bar');
   if(!section) return;
-  if(!schedule){section.style.display='none';return;}
+  if(!schedule){
+    section.style.display='none';
+    if(cutoffBar) cutoffBar.style.display='none';
+    return;
+  }
   section.style.display='block';
   var key = schedule.rawDate || schedule.id;
   var url = window.location.origin + '/?rsvp=' + key;
   document.getElementById('rsvp-share-url').textContent = url;
+  // Show cutoff bar for admins only
+  if(cutoffBar) cutoffBar.style.display=adminUnlocked?'flex':'none';
+  updateCutoffUI();
 }
 
 function copyRsvpLink(){
