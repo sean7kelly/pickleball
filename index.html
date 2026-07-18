@@ -1103,7 +1103,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var tmp=available[i];available[i]=available[j];available[j]=tmp;
     }
     var chosen=available.slice(0,needed);
-    console.log('V140-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
+    console.log('V145-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
     chosen.forEach(function(ri){
       pairRoundAssignments[ri].push(pair);
       if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
@@ -1198,20 +1198,28 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     var matches=[];
     var ci=0;
 
+    // Pre-reserve forced pair players so random courts don't grab them first
+    roundPairs.forEach(function(fp){
+      var a=avail.find(function(p){return p.id===fp.p1;});
+      var b=avail.find(function(p){return p.id===fp.p2;});
+      if(a&&b){used.add(a.id);used.add(b.id);}
+    });
+
     function pickForcedPair(pool,ctype){
       for(var pi=0;pi<roundPairs.length;pi++){
         var fp=roundPairs[pi];
-        var a=pool.find(function(p){return p.id===fp.p1&&!used.has(p.id);});
-        var b=pool.find(function(p){return p.id===fp.p2&&!used.has(p.id);});
-        if(r<3) console.log('pickForcedPair ctype='+ctype+' pair='+fp.p1+'+'+fp.p2+' found a='+!!a+' b='+!!b+(a?' g:'+a.gender:'')+(b?' g:'+b.gender:''));
+        // Temporarily remove pair from used to check if they're available
+        used.delete(fp.p1);used.delete(fp.p2);
+        var a=pool.find(function(p){return p.id===fp.p1;});
+        var b=pool.find(function(p){return p.id===fp.p2;});
+        if(!a||!b){used.add(fp.p1);used.add(fp.p2);}  // restore if not found
         if(!a||!b)continue;
-        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M')){if(r<3)console.log('  skip: gender mismatch for mens');continue;}
-        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F')){if(r<3)console.log('  skip: gender mismatch for womens');continue;}
-        if(ctype==='mixed'&&a.gender===b.gender){if(r<3)console.log('  skip: same gender for mixed');continue;}
-        if(mode==='mixed'&&a.gender===b.gender)continue;
-        if(mode==='gender'&&a.gender!==b.gender)continue;
-        if(r<3) console.log('  RETURNING pair!');
-        return[a,b];
+        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M')){used.add(fp.p1);used.add(fp.p2);continue;}
+        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F')){used.add(fp.p1);used.add(fp.p2);continue;}
+        if(ctype==='mixed'&&a.gender===b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
+        if(mode==='mixed'&&a.gender===b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
+        if(mode==='gender'&&a.gender!==b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
+        return[a,b];  // pair stays out of used - caller will add them
       }
       return null;
     }
@@ -1222,7 +1230,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
-      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('Forced pair placed (mens) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);}
+      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
       var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1236,7 +1244,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
-      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('Forced pair placed (womens) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);}
+      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
       var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1256,7 +1264,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
           placedPairs.add(fp[0].id+':'+fp[1].id);
-          console.log('Forced pair placed (mixed) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);
           markPair(fp[0],fp[1]);markPair(oppM,oppF);
           matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
           continue;
@@ -1271,7 +1278,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     }
     // Increment play count for pairs that were placed (track via used set)
     roundPairs.forEach(function(fp){
-      var wasPlaced=placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1);if(wasPlaced){fp._played=(fp._played||0)+1;console.log('Pair _played incremented:',fp.p1,'+',fp.p2,'->',fp._played);}
+      if(placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1))fp._played=(fp._played||0)+1;
     });
     // Inject fixed matches for this round
     (fixedMatches||[]).forEach(function(fm){
