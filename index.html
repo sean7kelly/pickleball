@@ -635,7 +635,7 @@ function showTab(t,btn){
 let adminUnlocked=false,pinBuffer='';
 function hashPin(pin){let h=0;for(let i=0;i<pin.length;i++){h=((h<<5)-h)+pin.charCodeAt(i);h|=0;}return'pb_'+Math.abs(h).toString(36);}
 function storedHash(){return settings.pin_hash||hashPin('1234');}
-function togglePinPad(){if(adminUnlocked){lockAdmin();return;}const pw=document.getElementById('pin-wrap');const po=document.getElementById('pin-overlay');pw.classList.toggle('open');po.style.display=pw.classList.contains('open')?'block':'none';pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
+function togglePinPad(){if(adminUnlocked){lockAdmin();return;}const pw=document.getElementById('pin-wrap');const po=document.getElementById('pin-overlay');pw.classList.toggle('open');if(po)po.style.display=pw.classList.contains('open')?'block':'none';pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
 function pinKey(k){if(k==='x')pinBuffer=pinBuffer.slice(0,-1);else if(k==='clear')pinBuffer='';else if(pinBuffer.length<4)pinBuffer+=k;updatePinDots();if(pinBuffer.length===4)setTimeout(()=>{if(hashPin(pinBuffer)===storedHash())unlockAdmin();else{document.getElementById('pin-err').textContent='Incorrect PIN';pinBuffer='';updatePinDots();}},150);}
 function updatePinDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('filled',i<pinBuffer.length);}
 function unlockAdmin(){
@@ -1193,36 +1193,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     // Use pre-assigned pairs for this round
     var roundPairs=pairRoundAssignments[r]||[];
     if(r<2) console.log('Round '+(r+1)+' roundPairs:',roundPairs.map(function(p){return p.p1+'+'+p.p2;}), 'avail:',avail.map(function(p){return p.id;}));
-    // Pre-place forced pairs
-    roundPairs.forEach(function(fp){
-      const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
-      if(a&&b&&!used.has(a.id)&&!used.has(b.id)){used.add(a.id);used.add(b.id);}
-    });
-    // Helper: get forced pair for a pool if applicable, respecting gender/mode rules
-    function getForcedPair(pool,courtType){
-      if(r<2&&roundPairs.length) console.log('getForcedPair called courtType='+courtType+' pool='+pool.map(function(p){return p.id;}).join(','));
-      for(var fi=0;fi<roundPairs.length;fi++){
-        var fp=roundPairs[fi];
-        var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
-        if(!a||!b)continue;
-        // Check gender rules for this court type
-        if(courtType==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
-        if(courtType==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
-        if(courtType==='mixed'&&a.gender===b.gender)continue;
-        // Check mode rules
-        if(mode==='mixed'&&a.gender===b.gender)continue;
-        if(mode==='gender'&&a.gender!==b.gender)continue;
-        // Both must be in the pool and available
-        var pa=pool.find(p=>p.id===fp.p1&&!used.has(p.id));
-        var pb=pool.find(p=>p.id===fp.p2&&!used.has(p.id));
-        if(pa&&pb){console.log('getForcedPair found:',fp.p1,fp.p2,'courtType:',courtType);return[fp.p1,fp.p2];}
-      }
-      return null;
-    }
-    // Re-add forced pair members to available (they were pre-marked to check validity)
-    roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
-    // Track which pairs get successfully placed this round
-    // Build courts - check forced pairs first on each slot
     var used=new Set();
     var matches=[];
     var ci=0;
