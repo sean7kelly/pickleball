@@ -1186,7 +1186,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
-    const used=new Set();let matches=[],ci=0;
+    
     // Get active forced pairs - only those who haven't reached their play count yet
     if(r===0){pairs.forEach(function(p){if(p._played===undefined)p._played=0;});}
     // Use pre-assigned pairs for this round
@@ -1221,43 +1221,81 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     // Re-add forced pair members to available (they were pre-marked to check validity)
     roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
     // Track which pairs get successfully placed this round
-    var pairedThisRound=new Set();
-    for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<xC;c++){
-      const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));
-      const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));
-      // Check for forced pair on mixed court
-      const fpx=getForcedPair(avM.concat(avF),'mixed');
-      let result;
-      if(fpx){
-        // Build mixed court with forced pair as one team
-        const pa=avM.find(p=>p.id===fpx[0])||avF.find(p=>p.id===fpx[0]);
-        const pb=avM.find(p=>p.id===fpx[1])||avF.find(p=>p.id===fpx[1]);
-        if(pa&&pb){
-          const usedTmp=new Set([pa.id,pb.id]);
-          const remM=avM.filter(p=>!usedTmp.has(p.id)),remF=avF.filter(p=>!usedTmp.has(p.id));
-          const opp=buildMixed(remM,remF);
-          if(opp){
-            // Build proper t2: one M and one F opponent
-            const oppM=remM.find(p=>!usedTmp.has(p.id));
-            const oppF=remF.find(p=>!usedTmp.has(p.id));
-            if(oppM&&oppF){
-              result={t1:[pa,pb],t2:[oppM,oppF]};
-              pairedThisRound.add(fpx[0]+':'+fpx[1]);
-            } else {result=null;}
-          }
-          // If we couldn't build opponents, mark pair as used so they don't get picked randomly
-          if(!result){used.add(pa.id);used.add(pb.id);}
-        }
+    // Build courts - check forced pairs first on each slot
+    var used=new Set();
+    var matches=[];
+    var ci=0;
+
+    function pickForcedPair(pool,ctype){
+      for(var pi=0;pi<roundPairs.length;pi++){
+        var fp=roundPairs[pi];
+        var a=pool.find(function(p){return p.id===fp.p1&&!used.has(p.id);});
+        var b=pool.find(function(p){return p.id===fp.p2&&!used.has(p.id);});
+        if(!a||!b)continue;
+        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
+        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
+        if(ctype==='mixed'&&a.gender===b.gender)continue;
+        if(mode==='mixed'&&a.gender===b.gender)continue;
+        if(mode==='gender'&&a.gender!==b.gender)continue;
+        return[a,b];
       }
-      if(!result) result=buildMixed(avM,avF);
-      if(!result)continue;
-      result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));
-      markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);
-      matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+      return null;
     }
-    // Increment play count only for pairs that were actually placed together
+
+    for(var ci0=0;ci0<mC;ci0++){
+      var pool=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var fp=pickForcedPair(pool,'mens');
+      var t1=fp?fp:bestPair(pool,null);
+      if(!t1)continue;
+      t1.forEach(function(p){used.add(p.id);});
+      var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var t2=bestPair(pool2,null);
+      if(!t2)continue;
+      t2.forEach(function(p){used.add(p.id);});
+      markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);
+      matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+    }
+    for(var ci1=0;ci1<fC;ci1++){
+      var pool=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var fp=pickForcedPair(pool,'womens');
+      var t1=fp?fp:bestPair(pool,null);
+      if(!t1)continue;
+      t1.forEach(function(p){used.add(p.id);});
+      var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var t2=bestPair(pool2,null);
+      if(!t2)continue;
+      t2.forEach(function(p){used.add(p.id);});
+      markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);
+      matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+    }
+    for(var ci2=0;ci2<xC;ci2++){
+      var pM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var pF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var fp=pickForcedPair(pM.concat(pF),'mixed');
+      if(fp){
+        fp.forEach(function(p){used.add(p.id);});
+        var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+        var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+        var oM=bestPair(rM,null),oF=bestPair(rF,null);
+        var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
+        if(oppM&&oppF){
+          used.add(oppM.id);used.add(oppF.id);
+          markPair(fp[0],fp[1]);markPair(oppM,oppF);
+          matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+          continue;
+        }
+        fp.forEach(function(p){used.delete(p.id);});
+      }
+      var res=buildMixed(pM,pF);
+      if(!res)continue;
+      res.t1.forEach(function(p){used.add(p.id);});res.t2.forEach(function(p){used.add(p.id);});
+      markPair(res.t1[0],res.t1[1]);markPair(res.t2[0],res.t2[1]);
+      matches.push({type:'mixed',team1:res.t1,team2:res.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+    }
+    // Increment play count for pairs that were placed (track via used set)
+    roundPairs.forEach(function(fp){
+      if(used.has(fp.p1)&&used.has(fp.p2))fp._played=(fp._played||0)+1;
+    });
     roundPairs.forEach(function(fp){
       if(pairedThisRound.has(fp.p1+':'+fp.p2)||pairedThisRound.has(fp.p2+':'+fp.p1)){
         fp._played=(fp._played||0)+1;
