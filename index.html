@@ -1209,18 +1209,17 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     function pickForcedPair(pool,ctype){
       for(var pi=0;pi<roundPairs.length;pi++){
         var fp=roundPairs[pi];
-        // Temporarily remove pair from used to check if they're available
-        used.delete(fp.p1);used.delete(fp.p2);
-        var a=pool.find(function(p){return p.id===fp.p1;});
-        var b=pool.find(function(p){return p.id===fp.p2;});
-        if(!a||!b){used.add(fp.p1);used.add(fp.p2);}  // restore if not found
+        if(used.has(fp.p1)||used.has(fp.p2))continue;
+        // Search avail directly - reserved players are in avail but not in used
+        var a=avail.find(function(p){return p.id===fp.p1;});
+        var b=avail.find(function(p){return p.id===fp.p2;});
         if(!a||!b)continue;
-        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M')){used.add(fp.p1);used.add(fp.p2);continue;}
-        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F')){used.add(fp.p1);used.add(fp.p2);continue;}
-        if(ctype==='mixed'&&a.gender===b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
-        if(mode==='mixed'&&a.gender===b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
-        if(mode==='gender'&&a.gender!==b.gender){used.add(fp.p1);used.add(fp.p2);continue;}
-        return[a,b];  // pair stays out of used - caller will add them
+        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
+        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
+        if(ctype==='mixed'&&a.gender===b.gender)continue;
+        if(mode==='mixed'&&a.gender===b.gender)continue;
+        if(mode==='gender'&&a.gender!==b.gender)continue;
+        return[a,b];
       }
       return null;
     }
