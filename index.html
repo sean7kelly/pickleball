@@ -1334,7 +1334,6 @@ async function genSchedule(){
   schedule.generated=true;
   schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
-  console.log('After gen pairs _played:', (schedule.pairs||[]).map(function(p){return p.p1+'+'+p.p2+'='+p._played;}));
   renderPairs();
   if(typeof pairWarnings!=='undefined'&&pairWarnings.length){
     document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">⚠️ Some pairs couldn\'t be fully honored:<br>'+pairWarnings.map(function(w){return '• '+w;}).join('<br>')+'</div>';
@@ -1350,6 +1349,7 @@ function genScheduleSilent(activePlayers){
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
+  renderPairs();
 }
 const typeLabel={mixed:'Mixed doubles',mens:"Men's doubles",womens:"Women's doubles"};
 const typeBadge={mixed:'bg-green',mens:'bg-blue',womens:'bg-pink'};
