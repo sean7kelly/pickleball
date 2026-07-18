@@ -1179,7 +1179,9 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     // Count how many courts reserved players need (each pair = 1 court, each fixed match = 1 court already placed)
     var pairCourts=(pairRoundAssignments[r]||[]).length;
     var randomPlayers=avail.filter(function(p){return!allReservedIds.has(p.id);}).length;
-    var randomCourts=Math.max(0,Math.floor(randomPlayers/4));
+    // Each pair court needs 2 opponents from random pool
+    var opponentsNeeded=pairCourts*2;
+    var randomCourts=Math.max(0,Math.floor((randomPlayers-opponentsNeeded)/4));
     var nCourts=Math.max(1,pairCourts+randomCourts);
     if(r>=3&&r<=5) console.log('Round '+(r+1)+': pairCourts='+pairCourts+' randomPlayers='+randomPlayers+' randomCourts='+randomCourts+' nCourts='+nCourts+' allReserved='+allReservedIds.size+' avail='+avail.length);
     // Solver runs on random (non-reserved) players only; pair courts added separately
@@ -1196,10 +1198,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     let chosen=validPlans[0]||{m:0,f:0,x:0,div:0};
     if(validPlans.length>1){if(mode==='auto'){const bd=validPlans[0].div;if(bd<3){chosen=validPlans[r%validPlans.length];}else{if(r%3===2)chosen=validPlans[1];}}else{chosen=validPlans[r%validPlans.length];}}
     let{m:mC,f:fC,x:xC}=chosen;
+    randomCourts=mC+fC+xC;  // actual courts solver will build
     const mNeeded=mC*4+xC*2,fNeeded=fC*4+xC*2;
     // Exclude forced pair players from sitter selection (they must play)
     var pairPlayerIds=new Set();
     (pairRoundAssignments[r]||[]).forEach(function(fp){pairPlayerIds.add(fp.p1);pairPlayerIds.add(fp.p2);});
+    // availM/availF for sitter selection: exclude pair players AND account for opponents going to pair courts
     const availM=[...avail].filter(p=>p.gender==='M'&&!allReservedIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const availF=[...avail].filter(p=>p.gender==='F'&&!allReservedIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
