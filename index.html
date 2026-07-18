@@ -1249,13 +1249,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       return null;
     }
 
+    // Random mens courts
     for(var ci0=0;ci0<mC;ci0++){
       var pool=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
-      var fp=pickForcedPair(pool,'mens');
-      var t1=fp?fp:bestPair(pool,null);
+      var t1=bestPair(pool,null);
       if(!t1)continue;
-      t1.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
-      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('PLACED mens pair:',fp[0].id,fp[1].id);}else if(fp){console.log('fp returned but t1!==fp, fp=',fp,'t1=',t1);}
+      t1.forEach(function(p){used.add(p.id);});
       var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1265,11 +1264,9 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     }
     for(var ci1=0;ci1<fC;ci1++){
       var pool=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
-      var fp=pickForcedPair(pool,'womens');
-      var t1=fp?fp:bestPair(pool,null);
+      var t1=bestPair(pool,null);
       if(!t1)continue;
-      t1.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
-      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
+      t1.forEach(function(p){used.add(p.id);});
       var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1277,38 +1274,46 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);
       matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
     }
+    // Random mixed courts (no forced pairs)
     for(var ci2=0;ci2<xC;ci2++){
       var pM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
       var pF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
-      var fp=pickForcedPair(pM.concat(pF),'mixed');
-      if(fp){
-        fp.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
-        var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
-        var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
-        if(!rM.length)rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
-        if(!rF.length)rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
-        if(!rM.length)rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
-        if(!rF.length)rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
-        var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
-        if(oppM&&oppF){
-          used.add(oppM.id);used.add(oppF.id);
-          placedPairs.add(fp[0].id+':'+fp[1].id);console.log('PLACED mixed pair:',fp[0].id,fp[1].id);
-          markPair(fp[0],fp[1]);markPair(oppM,oppF);
-          matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
-          continue;
-        }
-        // Can't place this pair this court slot - add to used temporarily so 
-        // next court slot tries a different pair or random
-        // They'll be cleaned up at end of round if not placed
-        // Don't delete from used - keep them blocked for remaining random courts
-        // but DO re-add to reserved so they can be found by pickForcedPair next slot
-        reserved.add(fp[0].id);reserved.add(fp[1].id);
-      }
       var res=buildMixed(pM,pF);
       if(!res)continue;
       res.t1.forEach(function(p){used.add(p.id);});res.t2.forEach(function(p){used.add(p.id);});
       markPair(res.t1[0],res.t1[1]);markPair(res.t2[0],res.t2[1]);
       matches.push({type:'mixed',team1:res.t1,team2:res.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+    }
+    // Forced pair courts (ADDITIONAL courts beyond random plan)
+    for(var pi=0;pi<roundPairs.length;pi++){
+      var fp=roundPairs[pi];
+      if(used.has(fp.p1)||used.has(fp.p2))continue;  // already placed (mens/womens pair)
+      var a=avail.find(function(p){return p.id===fp.p1;});
+      var b=avail.find(function(p){return p.id===fp.p2;});
+      if(!a||!b)continue;
+      if(mode==='mixed'&&a.gender===b.gender)continue;
+      if(mode==='gender'&&a.gender!==b.gender)continue;
+      // Determine court type
+      var ctype=a.gender===b.gender?(a.gender==='M'?'mens':'womens'):'mixed';
+      used.add(a.id);used.add(b.id);reserved.delete(a.id);reserved.delete(b.id);
+      // Find opponents
+      var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var t2;
+      if(ctype==='mixed'){
+        var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
+        if(oppM&&oppF){used.add(oppM.id);used.add(oppF.id);t2=[oppM,oppF];}
+      } else if(ctype==='mens'){
+        var t2pair=bestPair(rM,null);
+        if(t2pair){t2pair.forEach(function(p){used.add(p.id);});t2=t2pair;}
+      } else {
+        var t2pair=bestPair(rF,null);
+        if(t2pair){t2pair.forEach(function(p){used.add(p.id);});t2=t2pair;}
+      }
+      if(!t2){used.delete(a.id);used.delete(b.id);continue;}
+      placedPairs.add(a.id+':'+b.id);
+      markPair(a,b);markPair(t2[0],t2[1]);
+      matches.push({type:ctype,team1:[a,b],team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
     }
     // Increment play count for pairs that were placed (track via used set)
     roundPairs.forEach(function(fp){
