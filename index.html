@@ -1200,8 +1200,11 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
 
     var matches=[],ci=0;
     // Solve court type plan for randCourts using non-pair players
-    var randM=avail.filter(p=>p.gender==='M'&&!pairPlayerIds.has(p.id)).length;
-    var randF=avail.filter(p=>p.gender==='F'&&!pairPlayerIds.has(p.id)).length;
+    var randMAll=avail.filter(p=>p.gender==='M'&&!pairPlayerIds.has(p.id)).length;
+    var randFAll=avail.filter(p=>p.gender==='F'&&!pairPlayerIds.has(p.id)).length;
+    // Reserve pairCourts opponents (1M+1F each) from random solver's view
+    var randM=Math.max(0,randMAll-pairCourts);
+    var randF=Math.max(0,randFAll-pairCourts);
     var maxAct=Math.floor(Math.min(randCourts*4,randM+randF)/4)*4;
     var bestAct=0;
     for(let act=maxAct;act>=4;act-=4){
@@ -1252,33 +1255,43 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     for(let c=0;c<xC;c++){var r2=pickX();if(r2)matches.push({type:'mixed',team1:r2.t1,team2:r2.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
 
     // 6. Place forced pair courts
-    var placedPairs=new Set();
+    // First remove pair reservation from used (they were reserved to block random courts)
+    roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
+    // Collect pair court data without marking them used yet
+    var pairCourtsData=[];
     roundPairs.forEach(function(fp){
-      if(used.has(fp.p1)&&used.has(fp.p2))return; // already used (shouldn't happen)
       var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
       if(!a||!b)return;
       if(mode==='mixed'&&a.gender===b.gender)return;
       if(mode==='gender'&&a.gender!==b.gender)return;
       var ctype=a.gender===b.gender?(a.gender==='M'?'mens':'womens'):'mixed';
-      used.add(a.id);used.add(b.id);
-      // Find opponents from remaining avail (anyone not yet used)
-      var rem=avail.filter(p=>!used.has(p.id));
+      pairCourtsData.push({fp:fp,a:a,b:b,ctype:ctype});
+    });
+    // Place each pair court: mark pair as used, find opponents from non-pair remainder
+    var placedPairs=new Set();
+    var allPairIds=new Set(roundPairs.reduce(function(s,fp){return s.concat([fp.p1,fp.p2]);},[]));
+    pairCourtsData.forEach(function(pc){
+      used.add(pc.a.id);used.add(pc.b.id);
+      // Find opponents: non-used AND not other pairs' players
+      var rem=avail.filter(p=>!used.has(p.id)&&!allPairIds.has(p.id));
+      // Fallback: include other pair players if needed
+      if(rem.length<2) rem=avail.filter(p=>!used.has(p.id));
       var remM=rem.filter(p=>p.gender==='M'),remF=rem.filter(p=>p.gender==='F');
       var t2=null;
-      if(ctype==='mixed'){
+      if(pc.ctype==='mixed'){
         var oM=remM[0],oF=remF[0];
         if(oM&&oF){used.add(oM.id);used.add(oF.id);t2=[oM,oF];}
-      } else if(ctype==='mens'){
+      } else if(pc.ctype==='mens'){
         var t2p=bestPair(remM,null);
         if(t2p){t2p.forEach(p=>used.add(p.id));t2=t2p;}
       } else {
         var t2p=bestPair(remF,null);
         if(t2p){t2p.forEach(p=>used.add(p.id));t2=t2p;}
       }
-      if(!t2){used.delete(a.id);used.delete(b.id);return;}
-      placedPairs.add(fp.p1+':'+fp.p2);
-      markPair(a,b);markPair(t2[0],t2[1]);
-      matches.push({type:ctype,team1:[a,b],team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+      if(!t2)return;
+      placedPairs.add(pc.fp.p1+':'+pc.fp.p2);
+      markPair(pc.a,pc.b);markPair(t2[0],t2[1]);
+      matches.push({type:pc.ctype,team1:[pc.a,pc.b],team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
     });
 
     // 7. Track _played for placed pairs
