@@ -1184,9 +1184,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     var randomCourts=Math.max(0,totalCourts-pairCourts);
     var nCourts=totalCourts;
     if(r>=3&&r<=5) console.log('Round '+(r+1)+': pairCourts='+pairCourts+' randomPlayers='+randomPlayers+' randomCourts='+randomCourts+' nCourts='+nCourts+' allReserved='+allReservedIds.size+' avail='+avail.length);
-    // Solver plans for random players (opponents for pairs + random courts)
-    var rndM=avail.filter(function(p){return p.gender==='M'&&!allReservedIds.has(p.id);}).length;
-    var rndF=avail.filter(function(p){return p.gender==='F'&&!allReservedIds.has(p.id);}).length;
+    // Solver plans for random courts only (pair courts handled separately)
+    // Reserve pairCourts M and F players for pair court opponents
+    var rndMAll=avail.filter(function(p){return p.gender==='M'&&!allReservedIds.has(p.id);}).length;
+    var rndFAll=avail.filter(function(p){return p.gender==='F'&&!allReservedIds.has(p.id);}).length;
+    var rndM=Math.max(0,rndMAll-pairCourts);
+    var rndF=Math.max(0,rndFAll-pairCourts);
     const maxActive=Math.floor(Math.min(randomCourts*4,rndM+rndF)/4)*4;
     let bestActive=0;
     for(let active=maxActive;active>=4;active-=4){let ok=false;for(let m=0;m<=randomCourts&&!ok;m++)for(let f=0;f<=randomCourts-m&&!ok;f++)for(let x=0;x<=nCourts-m-f&&!ok;x++){if(m*4+x*2>rndM||f*4+x*2>rndF)continue;if((m*4+x*2)+(f*4+x*2)!==active)continue;if(m+f+x===0)continue;if(mode==='mixed'&&(m>0||f>0))continue;if(mode==='gender'&&x>0)continue;ok=true;}if(ok){bestActive=active;break;}}
@@ -1199,16 +1202,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     if(validPlans.length>1){if(mode==='auto'){const bd=validPlans[0].div;if(bd<3){chosen=validPlans[r%validPlans.length];}else{if(r%3===2)chosen=validPlans[1];}}else{chosen=validPlans[r%validPlans.length];}}
     let{m:mC,f:fC,x:xC}=chosen;
     randomCourts=mC+fC+xC;  // actual courts solver will build
-    const mNeeded=mC*4+xC*2,fNeeded=fC*4+xC*2;
-    // Exclude forced pair players from sitter selection (they must play)
-    var pairPlayerIds=new Set();
-    (pairRoundAssignments[r]||[]).forEach(function(fp){pairPlayerIds.add(fp.p1);pairPlayerIds.add(fp.p2);});
-    // availM/availF for sitter selection: exclude pair players AND account for opponents going to pair courts
-    const availM=[...avail].filter(p=>p.gender==='M'&&!allReservedIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
-    const availF=[...avail].filter(p=>p.gender==='F'&&!allReservedIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
-    const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
-    sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
-    if(r>=3&&r<=5) console.log('Round '+(r+1)+': mC='+mC+' fC='+fC+' xC='+xC+' mNeeded='+mNeeded+' fNeeded='+fNeeded+' sitM='+sitM+' sitF='+sitF+' sitters='+sitters.length);
+    // Simple sitter selection: pick players with most sit-outs from non-reserved pool
+    var totalPlaying=totalCourts*4;  // guaranteed if avail.length % 4 == 0
+    var sitCount=Math.max(0,avail.length-totalPlaying);
+    var sitPool=[...avail].filter(function(p){return!allReservedIds.has(p.id);}).sort(function(a,b){return (sitCts[b.id]||0)-(sitCts[a.id]||0);});
+    sitters=sitPool.slice(0,sitCount);
+    if(r>=3&&r<=5) console.log('Round '+(r+1)+': mC='+mC+' fC='+fC+' xC='+xC+' totalPlaying='+totalPlaying+' sitCount='+sitCount+' sitters='+sitters.length);
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
     
