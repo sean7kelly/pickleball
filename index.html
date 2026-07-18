@@ -1300,7 +1300,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
 
     allRounds.push({round:r+1,matches,sitters});
   }
-  return allRounds;
+  return {rounds:allRounds,warnings:pairWarnings};
 }
 async function genSchedule(){
   const sel=schedule?schedule.selected:[];
