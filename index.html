@@ -1103,6 +1103,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var tmp=available[i];available[i]=available[j];available[j]=tmp;
     }
     var chosen=available.slice(0,needed);
+    console.log('Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
     chosen.forEach(function(ri){
       pairRoundAssignments[ri].push(pair);
       if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
