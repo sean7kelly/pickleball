@@ -1276,11 +1276,10 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var fp=pickForcedPair(pM.concat(pF),'mixed');
       if(fp){
         fp.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
-        // For opponents, first try non-reserved players, then include reserved if needed
         var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
         var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
-        if(!rM.length) rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
-        if(!rF.length) rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+        if(!rM.length)rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+        if(!rF.length)rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
         var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
@@ -1289,8 +1288,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
           matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
           continue;
         }
-        // Can't place this pair - remove from used so they can try next slot
-        fp.forEach(function(p){used.delete(p.id);});
+        // Can't place this pair this court slot - add to used temporarily so 
+        // next court slot tries a different pair or random
+        // They'll be cleaned up at end of round if not placed
+        // Don't delete from used - keep them blocked for remaining random courts
+        // but DO re-add to reserved so they can be found by pickForcedPair next slot
+        reserved.add(fp[0].id);reserved.add(fp[1].id);
       }
       var res=buildMixed(pM,pF);
       if(!res)continue;
