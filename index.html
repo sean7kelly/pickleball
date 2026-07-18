@@ -1194,15 +1194,16 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     var roundPairs=pairRoundAssignments[r]||[];
     if(r<2) console.log('Round '+(r+1)+' roundPairs:',roundPairs.map(function(p){return p.p1+'+'+p.p2;}), 'avail:',avail.map(function(p){return p.id;}));
     var used=new Set();
+    var reserved=new Set();  // pair players not yet placed - excluded from random courts
     var placedPairs=new Set();
     var matches=[];
     var ci=0;
 
-    // Pre-reserve forced pair players so random courts don't grab them first
+    // Reserve forced pair players so random courts don't grab them
     roundPairs.forEach(function(fp){
       var a=avail.find(function(p){return p.id===fp.p1;});
       var b=avail.find(function(p){return p.id===fp.p2;});
-      if(a&&b){used.add(a.id);used.add(b.id);}
+      if(a&&b){reserved.add(a.id);reserved.add(b.id);}
     });
 
     function pickForcedPair(pool,ctype){
@@ -1225,13 +1226,13 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     }
 
     for(var ci0=0;ci0<mC;ci0++){
-      var pool=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var pool=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
       var fp=pickForcedPair(pool,'mens');
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
-      t1.forEach(function(p){used.add(p.id);});
+      t1.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
       if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
-      var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+      var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
       t2.forEach(function(p){used.add(p.id);});
@@ -1239,13 +1240,13 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
     }
     for(var ci1=0;ci1<fC;ci1++){
-      var pool=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var pool=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
       var fp=pickForcedPair(pool,'womens');
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
-      t1.forEach(function(p){used.add(p.id);});
+      t1.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
       if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
-      var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
       t2.forEach(function(p){used.add(p.id);});
@@ -1253,13 +1254,13 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
     }
     for(var ci2=0;ci2<xC;ci2++){
-      var pM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
-      var pF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+      var pM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
+      var pF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
       var fp=pickForcedPair(pM.concat(pF),'mixed');
       if(fp){
-        fp.forEach(function(p){used.add(p.id);});
-        var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
-        var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+        fp.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
+        var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
+        var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
         var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
