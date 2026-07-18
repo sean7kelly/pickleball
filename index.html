@@ -476,7 +476,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         </div>
         <div id="lock-bar" style="display:inline-flex;align-items:center;gap:6px;position:relative">
           <button class="btn btn-sm" id="lock-btn" onclick="togglePinPad()" style="font-size:11px">🔒 Admin</button>
-          <div class="pin-wrap" id="pin-wrap" style="position:absolute;right:0;top:32px;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:220px">
+          <div class="pin-wrap" id="pin-wrap" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:200;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:var(--r);padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:220px">
             <div style="font-size:13px;font-weight:600;margin-bottom:8px" id="lock-msg">Enter PIN</div>
             <div class="pin-display">
               <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
@@ -635,12 +635,12 @@ function showTab(t,btn){
 let adminUnlocked=false,pinBuffer='';
 function hashPin(pin){let h=0;for(let i=0;i<pin.length;i++){h=((h<<5)-h)+pin.charCodeAt(i);h|=0;}return'pb_'+Math.abs(h).toString(36);}
 function storedHash(){return settings.pin_hash||hashPin('1234');}
-function togglePinPad(){if(adminUnlocked){lockAdmin();return;}document.getElementById('pin-wrap').classList.toggle('open');pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
+function togglePinPad(){if(adminUnlocked){lockAdmin();return;}const pw=document.getElementById('pin-wrap');const po=document.getElementById('pin-overlay');pw.classList.toggle('open');po.style.display=pw.classList.contains('open')?'block':'none';pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
 function pinKey(k){if(k==='x')pinBuffer=pinBuffer.slice(0,-1);else if(k==='clear')pinBuffer='';else if(pinBuffer.length<4)pinBuffer+=k;updatePinDots();if(pinBuffer.length===4)setTimeout(()=>{if(hashPin(pinBuffer)===storedHash())unlockAdmin();else{document.getElementById('pin-err').textContent='Incorrect PIN';pinBuffer='';updatePinDots();}},150);}
 function updatePinDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('filled',i<pinBuffer.length);}
 function unlockAdmin(){
   adminUnlocked=true;pinBuffer='';updatePinDots();
-  document.getElementById('pin-wrap').classList.remove('open');
+  document.getElementById('pin-wrap').classList.remove('open');const _po=document.getElementById('pin-overlay');if(_po)_po.style.display='none';
   document.getElementById('pin-err').textContent='';
   document.getElementById('lock-msg').textContent='🔓 Admin unlocked';
   document.getElementById('lock-btn').textContent='🔓 Admin';
@@ -1065,6 +1065,41 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   // Reset runtime play counters (not persisted)
   (pairs||[]).forEach(function(p){p._played=0;});
   (fixedMatches||[]).forEach(function(fm){fm._played=0;});
+
+  // Pre-assign pair rounds randomly, respecting player conflicts
+  var pairRoundAssignments=[];
+  for(var ri=0;ri<ROUNDS;ri++) pairRoundAssignments.push([]);
+  var playerRoundUsage={};
+  var pairWarnings=[];
+  (pairs||[]).forEach(function(pair){
+    var available=[];
+    for(var ri=0;ri<ROUNDS;ri++){
+      var p1used=playerRoundUsage[pair.p1]&&playerRoundUsage[pair.p1].indexOf(ri)>=0;
+      var p2used=playerRoundUsage[pair.p2]&&playerRoundUsage[pair.p2].indexOf(ri)>=0;
+      if(!p1used&&!p2used) available.push(ri);
+    }
+    var requested=pair.rounds>=99?ROUNDS:pair.rounds;
+    var needed=Math.min(requested,available.length);
+    if(needed<requested){
+      var p1=activePlayers.find(function(p){return p.id===pair.p1;});
+      var p2=activePlayers.find(function(p){return p.id===pair.p2;});
+      var name1=p1?p1.name:pair.p1,name2=p2?p2.name:pair.p2;
+      pairWarnings.push((name1+' & '+name2)+': requested '+requested+' rounds but only '+needed+' available (other pairs conflict)');
+    }
+    // Shuffle available and pick needed
+    for(var i=available.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var tmp=available[i];available[i]=available[j];available[j]=tmp;
+    }
+    var chosen=available.slice(0,needed);
+    chosen.forEach(function(ri){
+      pairRoundAssignments[ri].push(pair);
+      if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
+      if(!playerRoundUsage[pair.p2]) playerRoundUsage[pair.p2]=[];
+      playerRoundUsage[pair.p1].push(ri);
+      playerRoundUsage[pair.p2].push(ri);
+    });
+  });
   const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
@@ -1143,9 +1178,8 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     const used=new Set();let matches=[],ci=0;
     // Get active forced pairs - only those who haven't reached their play count yet
     if(r===0){pairs.forEach(function(p){if(p._played===undefined)p._played=0;});}
-    const roundPairs=(pairs||[]).filter(function(p){return (p._played||0)<p.rounds;});
-    if(r===0) console.log('Pairs passed to solver:',JSON.stringify((pairs||[]).map(function(p){return{p1:p.p1,p2:p.p2,rounds:p.rounds,_played:p._played};})));
-    if(r===0) console.log('roundPairs count:',roundPairs.length,'avail count:',avail.length);
+    // Use pre-assigned pairs for this round
+    var roundPairs=pairRoundAssignments[r]||[];
     // Pre-place forced pairs
     roundPairs.forEach(function(fp){
       const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
@@ -1274,16 +1308,23 @@ async function genSchedule(){
   document.getElementById('sched-alert').innerHTML='';
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  schedule.matches=buildResult.rounds;
+  var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
   schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
+  if(typeof pairWarnings!=='undefined'&&pairWarnings.length){
+    document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">⚠️ Some pairs couldn\'t be fully honored:<br>'+pairWarnings.map(function(w){return '• '+w;}).join('<br>')+'</div>';
+  }
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
 function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  schedule.matches=buildResult.rounds;
+  var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
@@ -1833,7 +1874,7 @@ function renderPairs(){
     const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
     if(!p1||!p2)return '';
     const opts=[1,2,3,4,5,6,7,8,9,10].map(function(n){return '<option value="'+n+'"'+(pair.rounds===n?' selected':'')+'>'+n+' round'+(n>1?'s':'')+'</option>';}).join('')+'<option value="99"'+(pair.rounds>=99?' selected':'')+'>All rounds</option>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);flex-wrap:wrap"><span style="font-size:13px;font-weight:600">'+p1.name+' + '+p2.name+'</span><span style="font-size:12px;color:var(--text2)">together for</span><select onchange="updatePairRounds('+i+',this.value)" style="height:28px;width:100px;font-size:12px">'+opts+'</select><button class="btn btn-xs btn-danger" onclick="removePair('+i+')" style="margin-left:auto">✕ Remove</button></div>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);flex-wrap:wrap"><span style="font-size:13px;font-weight:600">'+p1.name+' + '+p2.name+'</span><span style="font-size:12px;color:var(--text2)">together for</span><span style="font-size:11px;color:var(--green-dk);margin-left:4px">('+(pair._played||0)+' of '+(pair.rounds>=99?'all':pair.rounds)+' done)</span><select onchange="updatePairRounds('+i+',this.value)" style="height:28px;width:100px;font-size:12px">'+opts+'</select><button class="btn btn-xs btn-danger" onclick="removePair('+i+')" style="margin-left:auto">✕ Remove</button></div>';
   }).join('');
   // Show warning if any pair conflicts with current mode
   if(pairs.length&&schedule){
@@ -1883,8 +1924,29 @@ function addPair(){
   if(isNaN(i1)||!pl[i1])return;
   const i2=parseInt(prompt('Second player number ('+nameList+'):'));
   if(isNaN(i2)||!pl[i2]||i2===i1){alert('Invalid selection.');return;}
-  const r=parseInt(prompt('Rounds together (99 = all):','3'));
+  const r=parseInt(prompt('Rounds together (enter number, or 99 for all rounds):','99'));
   if(isNaN(r)||r<1)return;
+  // Validate: check if enough rounds are available for this pair
+  var existingPairs=schedule.pairs||[];
+  var p1RoundsUsed=(schedule.rounds||10);
+  var p2RoundsUsed=(schedule.rounds||10);
+  // Count how many rounds each player is already committed across existing pairs
+  var p1id=pl[i1].id,p2id=pl[i2].id;
+  existingPairs.forEach(function(ep){
+    if(ep.p1===p1id||ep.p2===p1id) p1RoundsUsed-=Math.min(ep.rounds>=99?(schedule.rounds||10):ep.rounds,(schedule.rounds||10));
+    if(ep.p1===p2id||ep.p2===p2id) p2RoundsUsed-=Math.min(ep.rounds>=99?(schedule.rounds||10):ep.rounds,(schedule.rounds||10));
+  });
+  var neededRounds=Math.min(r,99)>=99?(schedule.rounds||10):Math.min(r,99);
+  var availableRounds=Math.min(p1RoundsUsed,p2RoundsUsed);
+  if(neededRounds>availableRounds){
+    var p1name=pl[i1].name,p2name=pl[i2].name;
+    var reason=availableRounds<=0
+      ? p1RoundsUsed<=0?p1name+' has no free rounds left (already committed every round)':p2name+' has no free rounds left (already committed every round)'
+      : 'Only '+availableRounds+' round'+(availableRounds!==1?'s':'')+' available for this pair — other pairs already use '+p1name+' or '+p2name+' in the remaining rounds.';
+    if(!confirm('⚠️ Warning: '+reason+'\n\nAdd pair anyway with '+availableRounds+' rounds instead?')) return;
+    r=availableRounds;
+    if(r<1){alert('Cannot add pair — no rounds available.');return;}
+  }
   schedule.pairs.push({p1:pl[i1].id,p2:pl[i2].id,rounds:Math.min(r,99)});
   renderPairs();
   savePairs();
