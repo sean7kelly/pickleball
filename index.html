@@ -1103,7 +1103,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var tmp=available[i];available[i]=available[j];available[j]=tmp;
     }
     var chosen=available.slice(0,needed);
-    console.log('Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
+    console.log('V140-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
     chosen.forEach(function(ri){
       pairRoundAssignments[ri].push(pair);
       if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
@@ -1267,12 +1267,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     roundPairs.forEach(function(fp){
       if(used.has(fp.p1)&&used.has(fp.p2))fp._played=(fp._played||0)+1;
     });
-    roundPairs.forEach(function(fp){
-      if(pairedThisRound.has(fp.p1+':'+fp.p2)||pairedThisRound.has(fp.p2+':'+fp.p1)){
-        fp._played=(fp._played||0)+1;
-      }
-    });
-
     // Inject fixed matches for this round
     (fixedMatches||[]).forEach(function(fm){
       const shouldPlay=fm.specificRounds&&fm.specificRounds.length
