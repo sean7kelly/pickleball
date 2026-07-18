@@ -1179,12 +1179,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     // Count how many courts reserved players need (each pair = 1 court, each fixed match = 1 court already placed)
     var pairCourts=(pairRoundAssignments[r]||[]).length;
     var randomPlayers=avail.filter(function(p){return!allReservedIds.has(p.id);}).length;
-    // Each pair court needs 2 opponents from random pool
-    var opponentsNeeded=pairCourts*2;
-    var randomCourts=Math.max(0,Math.floor((randomPlayers-opponentsNeeded)/4));
-    var nCourts=Math.max(1,pairCourts+randomCourts);
+
+    var totalCourts=Math.max(1,Math.floor(avail.length/4));
+    var randomCourts=Math.max(0,totalCourts-pairCourts);
+    var nCourts=totalCourts;
     if(r>=3&&r<=5) console.log('Round '+(r+1)+': pairCourts='+pairCourts+' randomPlayers='+randomPlayers+' randomCourts='+randomCourts+' nCourts='+nCourts+' allReserved='+allReservedIds.size+' avail='+avail.length);
-    // Solver runs on random (non-reserved) players only; pair courts added separately
+    // Solver plans for random players (opponents for pairs + random courts)
     var rndM=avail.filter(function(p){return p.gender==='M'&&!allReservedIds.has(p.id);}).length;
     var rndF=avail.filter(function(p){return p.gender==='F'&&!allReservedIds.has(p.id);}).length;
     const maxActive=Math.floor(Math.min(randomCourts*4,rndM+rndF)/4)*4;
