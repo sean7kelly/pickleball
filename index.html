@@ -1293,6 +1293,8 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       pf.fm._played=(pf.fm._played||0)+1;
       sitters=sitters.filter(p=>![pf.t1[0].id,pf.t1[1].id,pf.t2[0].id,pf.t2[1].id].includes(p.id));
     });
+
+    allRounds.push({round:r+1,matches:matches,sitters:sitters});
   }
   return {rounds:allRounds,warnings:pairWarnings};
 }
