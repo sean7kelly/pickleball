@@ -1180,6 +1180,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     if(r===0){pairs.forEach(function(p){if(p._played===undefined)p._played=0;});}
     // Use pre-assigned pairs for this round
     var roundPairs=pairRoundAssignments[r]||[];
+    if(r<2) console.log('Round '+(r+1)+' roundPairs:',roundPairs.map(function(p){return p.p1+'+'+p.p2;}), 'avail:',avail.map(function(p){return p.id;}));
     // Pre-place forced pairs
     roundPairs.forEach(function(fp){
       const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
@@ -1187,6 +1188,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     });
     // Helper: get forced pair for a pool if applicable, respecting gender/mode rules
     function getForcedPair(pool,courtType){
+      if(r<2&&roundPairs.length) console.log('getForcedPair called courtType='+courtType+' pool='+pool.map(function(p){return p.id;}).join(','));
       for(var fi=0;fi<roundPairs.length;fi++){
         var fp=roundPairs[fi];
         var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
