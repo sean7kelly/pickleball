@@ -1071,7 +1071,18 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   for(var ri=0;ri<ROUNDS;ri++) pairRoundAssignments.push([]);
   var playerRoundUsage={};
   var pairWarnings=[];
-  (pairs||[]).forEach(function(pair){
+  // Sort pairs most-constrained-first: players appearing in more pairs get priority
+  var playerPairCount={};
+  (pairs||[]).forEach(function(p){
+    playerPairCount[p.p1]=(playerPairCount[p.p1]||0)+1;
+    playerPairCount[p.p2]=(playerPairCount[p.p2]||0)+1;
+  });
+  var sortedPairs=(pairs||[]).slice().sort(function(a,b){
+    var aScore=(playerPairCount[a.p1]||0)+(playerPairCount[a.p2]||0);
+    var bScore=(playerPairCount[b.p1]||0)+(playerPairCount[b.p2]||0);
+    return bScore-aScore; // most constrained first
+  });
+  sortedPairs.forEach(function(pair){
     var available=[];
     for(var ri=0;ri<ROUNDS;ri++){
       var p1used=playerRoundUsage[pair.p1]&&playerRoundUsage[pair.p1].indexOf(ri)>=0;
@@ -1962,7 +1973,7 @@ function addPair(){
 }
 
 function removePair(i){if(!schedule||!schedule.pairs)return;schedule.pairs.splice(i,1);renderPairs();savePairs();}
-function updatePairRounds(i,val){if(!schedule||!schedule.pairs)return;schedule.pairs[i].rounds=+val;savePairs();}
+function updatePairRounds(i,val){if(!schedule||!schedule.pairs)return;schedule.pairs[i].rounds=+val;renderPairs();savePairs();}
 async function savePairs(){try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 
 async function init(){
