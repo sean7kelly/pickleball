@@ -1286,7 +1286,12 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
           matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
           continue;
         }
-        fp.forEach(function(p){used.delete(p.id);});
+        // Can't place this pair this court slot - add to used temporarily so 
+        // next court slot tries a different pair or random
+        // They'll be cleaned up at end of round if not placed
+        // Don't delete from used - keep them blocked for remaining random courts
+        // but DO re-add to reserved so they can be found by pickForcedPair next slot
+        reserved.add(fp[0].id);reserved.add(fp[1].id);
       }
       var res=buildMixed(pM,pF);
       if(!res)continue;
