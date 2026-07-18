@@ -1076,7 +1076,18 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     for(var ri=0;ri<ROUNDS;ri++){
       var p1used=playerRoundUsage[pair.p1]&&playerRoundUsage[pair.p1].indexOf(ri)>=0;
       var p2used=playerRoundUsage[pair.p2]&&playerRoundUsage[pair.p2].indexOf(ri)>=0;
-      if(!p1used&&!p2used) available.push(ri);
+      if(p1used||p2used) continue;
+      // Also skip rounds where either player is in a fixed match
+      var inFixed=false;
+      (fixedMatches||[]).forEach(function(fm){
+        var fmRounds=fm.specificRounds&&fm.specificRounds.length?fm.specificRounds:null;
+        var fmActive=fmRounds?fmRounds.indexOf(ri+1)>=0:(fm._played||0)<(fm.count||1);
+        if(fmActive&&(fm.t1p1===pair.p1||fm.t1p2===pair.p1||fm.t2p1===pair.p1||fm.t2p2===pair.p1||
+                      fm.t1p1===pair.p2||fm.t1p2===pair.p2||fm.t2p1===pair.p2||fm.t2p2===pair.p2)){
+          inFixed=true;
+        }
+      });
+      if(!inFixed) available.push(ri);
     }
     var requested=pair.rounds>=99?ROUNDS:pair.rounds;
     var needed=Math.min(requested,available.length);
