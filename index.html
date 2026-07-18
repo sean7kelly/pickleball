@@ -1194,6 +1194,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     var roundPairs=pairRoundAssignments[r]||[];
     if(r<2) console.log('Round '+(r+1)+' roundPairs:',roundPairs.map(function(p){return p.p1+'+'+p.p2;}), 'avail:',avail.map(function(p){return p.id;}));
     var used=new Set();
+    var placedPairs=new Set();
     var matches=[];
     var ci=0;
 
@@ -1219,6 +1220,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
+      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
       var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1232,6 +1234,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
+      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
       var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1247,10 +1250,10 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         fp.forEach(function(p){used.add(p.id);});
         var rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
         var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
-        var oM=bestPair(rM,null),oF=bestPair(rF,null);
         var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
+          placedPairs.add(fp[0].id+':'+fp[1].id);
           markPair(fp[0],fp[1]);markPair(oppM,oppF);
           matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
           continue;
@@ -1265,7 +1268,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     }
     // Increment play count for pairs that were placed (track via used set)
     roundPairs.forEach(function(fp){
-      if(used.has(fp.p1)&&used.has(fp.p2))fp._played=(fp._played||0)+1;
+      if(placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1))fp._played=(fp._played||0)+1;
     });
     // Inject fixed matches for this round
     (fixedMatches||[]).forEach(function(fm){
