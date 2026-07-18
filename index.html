@@ -1103,7 +1103,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var tmp=available[i];available[i]=available[j];available[j]=tmp;
     }
     var chosen=available.slice(0,needed);
-    console.log('V145-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
+    console.log('V148-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
     chosen.forEach(function(ri){
       pairRoundAssignments[ri].push(pair);
       if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
@@ -1181,8 +1181,11 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     if(validPlans.length>1){if(mode==='auto'){const bd=validPlans[0].div;if(bd<3){chosen=validPlans[r%validPlans.length];}else{if(r%3===2)chosen=validPlans[1];}}else{chosen=validPlans[r%validPlans.length];}}
     let{m:mC,f:fC,x:xC}=chosen;
     const mNeeded=mC*4+xC*2,fNeeded=fC*4+xC*2;
-    const availM=[...avail].filter(p=>p.gender==='M').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
-    const availF=[...avail].filter(p=>p.gender==='F').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
+    // Exclude forced pair players from sitter selection (they must play)
+    var pairPlayerIds=new Set();
+    (pairRoundAssignments[r]||[]).forEach(function(fp){pairPlayerIds.add(fp.p1);pairPlayerIds.add(fp.p2);});
+    const availM=[...avail].filter(p=>p.gender==='M'&&!pairPlayerIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
+    const availF=[...avail].filter(p=>p.gender==='F'&&!pairPlayerIds.has(p.id)).sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
     const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
     sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
@@ -1219,6 +1222,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         if(ctype==='mixed'&&a.gender===b.gender)continue;
         if(mode==='mixed'&&a.gender===b.gender)continue;
         if(mode==='gender'&&a.gender!==b.gender)continue;
+        console.log('PICK returning',a.id,'+',b.id,'for',ctype);
         return[a,b];
       }
       return null;
@@ -1230,7 +1234,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);reserved.delete(p.id);});
-      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
+      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('PLACED mens pair:',fp[0].id,fp[1].id);}else if(fp){console.log('fp returned but t1!==fp, fp=',fp,'t1=',t1);}
       var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id)&&!reserved.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
