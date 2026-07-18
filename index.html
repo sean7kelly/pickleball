@@ -1220,7 +1220,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
-      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
+      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('Forced pair placed (mens) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);}
       var pool2=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1234,7 +1234,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
       var t1=fp?fp:bestPair(pool,null);
       if(!t1)continue;
       t1.forEach(function(p){used.add(p.id);});
-      if(fp&&t1===fp)placedPairs.add(fp[0].id+':'+fp[1].id);
+      if(fp&&t1===fp){placedPairs.add(fp[0].id+':'+fp[1].id);console.log('Forced pair placed (womens) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);}
       var pool2=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
       var t2=bestPair(pool2,null);
       if(!t2)continue;
@@ -1254,6 +1254,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
           placedPairs.add(fp[0].id+':'+fp[1].id);
+          console.log('Forced pair placed (mixed) round '+(r+1)+':',fp[0].name||fp[0].id,'+',fp[1].name||fp[1].id);
           markPair(fp[0],fp[1]);markPair(oppM,oppF);
           matches.push({type:'mixed',team1:fp,team2:[oppM,oppF],score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
           continue;
@@ -1268,7 +1269,7 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     }
     // Increment play count for pairs that were placed (track via used set)
     roundPairs.forEach(function(fp){
-      if(placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1))fp._played=(fp._played||0)+1;
+      var wasPlaced=placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1);if(wasPlaced){fp._played=(fp._played||0)+1;console.log('Pair _played incremented:',fp.p1,'+',fp.p2,'->',fp._played);}
     });
     // Inject fixed matches for this round
     (fixedMatches||[]).forEach(function(fm){
