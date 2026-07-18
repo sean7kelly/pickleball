@@ -1239,16 +1239,16 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
           const remM=avM.filter(p=>!usedTmp.has(p.id)),remF=avF.filter(p=>!usedTmp.has(p.id));
           const opp=buildMixed(remM,remF);
           if(opp){
-            result={t1:[pa,pb],t2:opp.t1.concat(opp.t2).slice(0,2)};
-            // Fix result.t2 to be proper 2-player team
-            const oppPlayers=[];
-            if(pa.gender==='M'){oppPlayers.push(remF[0]||null,remM[0]||null);}
-            else{oppPlayers.push(remM[0]||null,remF[0]||null);}
-            result={t1:[pa,pb],t2:oppPlayers.filter(Boolean)};
-            if(result.t2.length===2){
+            // Build proper t2: one M and one F opponent
+            const oppM=remM.find(p=>!usedTmp.has(p.id));
+            const oppF=remF.find(p=>!usedTmp.has(p.id));
+            if(oppM&&oppF){
+              result={t1:[pa,pb],t2:[oppM,oppF]};
               pairedThisRound.add(fpx[0]+':'+fpx[1]);
             } else {result=null;}
           }
+          // If we couldn't build opponents, mark pair as used so they don't get picked randomly
+          if(!result){used.add(pa.id);used.add(pb.id);}
         }
       }
       if(!result) result=buildMixed(avM,avF);
