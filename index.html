@@ -1203,12 +1203,14 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         var fp=roundPairs[pi];
         var a=pool.find(function(p){return p.id===fp.p1&&!used.has(p.id);});
         var b=pool.find(function(p){return p.id===fp.p2&&!used.has(p.id);});
+        if(r<3) console.log('pickForcedPair ctype='+ctype+' pair='+fp.p1+'+'+fp.p2+' found a='+!!a+' b='+!!b+(a?' g:'+a.gender:'')+(b?' g:'+b.gender:''));
         if(!a||!b)continue;
-        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
-        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
-        if(ctype==='mixed'&&a.gender===b.gender)continue;
+        if(ctype==='mens'&&(a.gender!=='M'||b.gender!=='M')){if(r<3)console.log('  skip: gender mismatch for mens');continue;}
+        if(ctype==='womens'&&(a.gender!=='F'||b.gender!=='F')){if(r<3)console.log('  skip: gender mismatch for womens');continue;}
+        if(ctype==='mixed'&&a.gender===b.gender){if(r<3)console.log('  skip: same gender for mixed');continue;}
         if(mode==='mixed'&&a.gender===b.gender)continue;
         if(mode==='gender'&&a.gender!==b.gender)continue;
+        if(r<3) console.log('  RETURNING pair!');
         return[a,b];
       }
       return null;
