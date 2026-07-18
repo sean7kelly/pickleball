@@ -1280,6 +1280,8 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
         var rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id)&&!reserved.has(p.id);});
         if(!rM.length)rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
         if(!rF.length)rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
+        if(!rM.length)rM=avail.filter(function(p){return p.gender==='M'&&!used.has(p.id);});
+        if(!rF.length)rF=avail.filter(function(p){return p.gender==='F'&&!used.has(p.id);});
         var oppM=rM.length>0?rM[0]:null,oppF=rF.length>0?rF[0]:null;
         if(oppM&&oppF){
           used.add(oppM.id);used.add(oppF.id);
