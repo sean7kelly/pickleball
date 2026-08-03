@@ -1168,10 +1168,9 @@ function autoSyncRsvpsToSchedule(){
   var wl=calcWaitlist(schedule.mode);
   var activePlayers;
   if(schedule.waitlistOverride){
-    // Override: include everyone as regular players (ignore forced pairs for waitlisted)
+    // Override: include ALL rsvp'd players (waitlisted included as subs)
     activePlayers=inPlayers;
-    // Don't use forced pairs when override is on - treat everyone equally
-
+  } else {
     var activeIds=wl.active.length>0?new Set(wl.active.map(function(c){return c.id;})):null;
     activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
   }
