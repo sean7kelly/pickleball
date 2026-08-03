@@ -732,6 +732,33 @@ async function promptRating(id){
     try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}
   },400);
 }
+function renderPublicSchedulePicker(){
+  var el=document.getElementById('public-schedule-picker');
+  if(!el)return;
+  if(!schedules.length){el.innerHTML='';return;}
+  // Show upcoming schedules as selectable cards (always visible)
+  var upcoming=schedules.filter(function(s){
+    if(!s.rawDate)return true;
+    return new Date(s.rawDate)>=new Date(new Date().toDateString());
+  }).slice(0,3);
+  if(!upcoming.length) upcoming=schedules.slice(0,3);
+  if(upcoming.length<=1&&schedule){el.innerHTML='';return;} // only 1 schedule, already selected
+  var html='<div style="margin-bottom:8px">';
+  html+='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Select schedule:</div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  upcoming.forEach(function(s){
+    var isActive=schedule&&schedule.id===s.id;
+    var inCount=Object.values(s.rsvps||{}).filter(function(v){return v==='yes';}).length;
+    html+='<button onclick="selectPublicSchedule('+s.id+')" style="font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid '+(isActive?'var(--teal)':'var(--border)')+';background:'+(isActive?'var(--teal)':'var(--surface)')+';color:'+(isActive?'#fff':'var(--text1)')+';cursor:pointer">'+s.name+(inCount?' · '+inCount+' in':'')+'</button>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html;
+}
+function selectPublicSchedule(id){
+  var s=schedules.find(function(x){return x.id===id;});
+  if(s){schedule=s;renderContacts();updateRsvpLinkSection();}
+}
+
 function calcWaitlist(mode){
   // Get all 'yes' RSVPs for current schedule
   if(!schedule)return{active:[],waitlist:[],courts:0,needM:0,needF:0,nM:0,nF:0};
@@ -899,7 +926,7 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
   if(schedule){
     schedBar.style.display='flex';
     noSchedBar.style.display='none';
-    document.getElementById('invite-section').style.display='block';
+    document.getElementById('invite-section').style.display=adminUnlocked?'block':'none';
     document.getElementById('rsvp-schedule-name').textContent=schedule.name+(schedule.date?' · '+schedule.date:'');
     buildInviteMsg();
     updateRsvpLinkSection();
@@ -1577,7 +1604,7 @@ function selectInviteSchedule(id){
   if(noSchedBar) noSchedBar.style.display='none';
   if(nameEl) nameEl.textContent=s.name+(s.date?' · '+s.date:'');
   var invSec=document.getElementById('invite-section');
-  if(invSec) invSec.style.display='block';
+  if(invSec) invSec.style.display=adminUnlocked?'block':'none';
   updateRsvpLinkSection();
   buildInviteMsg();
   renderContacts();
