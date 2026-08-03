@@ -1168,9 +1168,10 @@ function autoSyncRsvpsToSchedule(){
   var wl=calcWaitlist(schedule.mode);
   var activePlayers;
   if(schedule.waitlistOverride){
-    // Override: include everyone (waitlisted players sit out in rotation)
+    // Override: include everyone as regular players (ignore forced pairs for waitlisted)
     activePlayers=inPlayers;
-  } else {
+    // Don't use forced pairs when override is on - treat everyone equally
+
     var activeIds=wl.active.length>0?new Set(wl.active.map(function(c){return c.id;})):null;
     activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
   }
@@ -1581,7 +1582,8 @@ async function genSchedule(){
   document.getElementById('sched-alert').innerHTML='';
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,usePairs,schedule.fixedMatches||[]);
   schedule.matches=buildResult.rounds;
   var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
@@ -1596,7 +1598,8 @@ async function genSchedule(){
 function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,usePairs,schedule.fixedMatches||[]);
   schedule.matches=buildResult.rounds;
   var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
