@@ -1038,8 +1038,8 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
         ${adminUnlocked?('<div style="display:flex;gap:4px">'+(c.duprUrl?'<a href="'+c.duprUrl+'" target="_blank" rel="noopener" class="btn btn-xs btn-teal">View ↗</a>':'')+'<button class="btn btn-xs btn-primary" onclick="promptRating('+c.id+')">Update DUPR</button></div>'):''}
       </div>`:''}
       <div style="display:flex;gap:5px">
-        <button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
-        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>
+        ${(adminUnlocked||rsvpLandingMode)?`<button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
+        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
       </div>
     </div>`;
   }).join('');
