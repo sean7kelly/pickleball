@@ -839,9 +839,19 @@ function renderWaitlist(){
   if(!schedule){el.style.display='none';return;}
   var rsvps=schedule.rsvps||{};
   var hasAnyYes=Object.values(rsvps).some(function(v){return getRsvpStatus(v)==='yes';});
+  // Always build the override button for admin regardless of RSVP status
+  var overrideHtml='';
+  if(adminUnlocked){
+    var overrideActive=schedule.waitlistOverride;
+    overrideHtml='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">🔧 Waitlist override</div>'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Include waitlisted players in schedule as subs</div>'
+      +'<button class="btn btn-sm '+(overrideActive?'btn-primary':'')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON':'Enable override')+'</button>'
+      +'</div>';
+  }
   if(!hasAnyYes){
     el.style.display='block';
-    el.innerHTML='<div class="card" style="margin-bottom:12px"><div style="font-size:13px;color:var(--text2)">No RSVPs yet for '+schedule.name+'</div></div>';
+    el.innerHTML='<div class="card" style="margin-bottom:12px"><div style="font-size:13px;color:var(--text2)">No RSVPs yet for '+schedule.name+'</div>'+overrideHtml+'</div>';
     return;
   }
   var wl=calcWaitlist(schedule.mode);
@@ -909,25 +919,9 @@ function renderWaitlist(){
     if(neededMsg){
       html+='<div style="font-size:12px;color:var(--text2);margin-top:8px">To add another court: need '+neededMsg+'</div>';
     }
-    // Admin override button
-    if(adminUnlocked){
-      var overrideActive=schedule.waitlistOverride;
-      html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
-      html+='<div style="font-size:12px;font-weight:600;margin-bottom:6px">Admin override</div>';
-      html+='<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Include waitlisted players in schedule as subs (they will play and sit out in rotation)</div>';
-      html+='<button class="btn btn-sm '+(overrideActive?'btn-primary':'btn-outline')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON — all players included':'Enable override (add waitlist as subs)')+' </button>';
-      html+='</div>';
-    }
+
   }
-  // Admin override - always show when admin
-  if(adminUnlocked&&schedule){
-    var overrideActive=schedule.waitlistOverride;
-    html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
-    html+='<div style="font-size:12px;font-weight:600;margin-bottom:4px">🔧 Admin: Waitlist override</div>';
-    html+='<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Include waitlisted players in schedule as subs (they sit out in normal rotation)</div>';
-    html+='<button class="btn btn-sm '+(overrideActive?'btn-primary':'')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON — all players included':'Enable override')+' </button>';
-    html+='</div>';
-  }
+  html+=overrideHtml;
   html+='</div>';
   el.innerHTML=html;
 }
