@@ -504,7 +504,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
   </div>
   <div id="public-schedule-picker"></div>
   <div id="waitlist-section" style="display:none"></div>
-  <div id="public-schedule-picker"></div>   <div id="waitlist-section" style="display:none"></div>   <div class="pgrid" id="contact-grid"></div>
+  <div class="pgrid" id="contact-grid"></div>
 </div>
 <!-- STATS TAB -->
 <div id="tab-stats" class="section">
@@ -771,11 +771,30 @@ function selectPublicSchedule(id){
   if(s){schedule=s;renderContacts();updateRsvpLinkSection();}
 }
 
+function getRsvpStatus(val){
+  if(!val)return null;
+  if(typeof val==='object')return val.s||null;
+  return val;
+}
+function getRsvpTime(val){
+  if(!val)return 0;
+  if(typeof val==='object')return val.t||0;
+  return 0; // old format - no timestamp
+}
+
 function calcWaitlist(mode){
   // Get all 'yes' RSVPs for current schedule
   if(!schedule)return{active:[],waitlist:[],courts:0,needM:0,needF:0,nM:0,nF:0};
   var rsvps=schedule.rsvps||{};
-  var ins=contacts.filter(function(c){return rsvps[c.id]==='yes'||rsvps[''+c.id]==='yes';});
+  // Sort by RSVP time (first-come-first-served), fallback to contact order
+  var ins=contacts.filter(function(c){
+    var v=rsvps[c.id]||rsvps[''+c.id];
+    return getRsvpStatus(v)==='yes';
+  }).sort(function(a,b){
+    var ta=getRsvpTime(rsvps[a.id]||rsvps[''+a.id]);
+    var tb=getRsvpTime(rsvps[b.id]||rsvps[''+b.id]);
+    return ta-tb; // earliest first
+  });
   var nM=ins.filter(function(c){return c.gender==='M';}).length;
   var nF=ins.filter(function(c){return c.gender==='F';}).length;
   // Find best court plan with 0 sitters
@@ -869,7 +888,7 @@ function renderWaitlist(){
   el.innerHTML=html;
 }
 
-function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
@@ -1079,7 +1098,9 @@ function selectInOnly(){const m=(schedule&&schedule.rsvps)?schedule.rsvps:{};con
 async function batchSaveContacts(){try{setSyncing();await Promise.all(contacts.map(c=>api('contacts/upsert',contactToDb(c))));setSynced();}catch(e){setSyncErr();}}
 function autoSyncRsvpsToSchedule(){
   if(!schedule)return;
-  const rsvpMap=schedule.rsvps||{};
+  var rawRsvps2=schedule.rsvps||{};
+  const rsvpMap={};
+  Object.keys(rawRsvps2).forEach(function(k){rsvpMap[k]=getRsvpStatus(rawRsvps2[k]);});
   // Get day of week from schedule date if available
   let schedDay=null;
   if(schedule.rawDate){try{schedDay=new Date(schedule.rawDate+'T12:00:00').getDay();}catch(e){}}
