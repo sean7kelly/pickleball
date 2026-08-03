@@ -732,6 +732,100 @@ async function promptRating(id){
     try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}
   },400);
 }
+function calcWaitlist(mode){
+  // Get all 'yes' RSVPs for current schedule
+  if(!schedule)return{active:[],waitlist:[],courts:0,needM:0,needF:0,nM:0,nF:0};
+  var rsvps=schedule.rsvps||{};
+  var ins=contacts.filter(function(c){return rsvps[c.id]==='yes'||rsvps[''+c.id]==='yes';});
+  var nM=ins.filter(function(c){return c.gender==='M';}).length;
+  var nF=ins.filter(function(c){return c.gender==='F';}).length;
+  // Find best court plan with 0 sitters
+  var bestPlan=null,bestCourts=0;
+  var maxCourts=Math.floor((nM+nF)/4);
+  outer:for(var courts=maxCourts;courts>=1;courts--){
+    for(var mC=0;mC<=courts;mC++){
+      for(var fC=0;fC<=courts-mC;fC++){
+        var xC=courts-mC-fC;
+        var needM=mC*4+xC*2,needF=fC*4+xC*2;
+        if(needM>nM||needF>nF)continue;
+        if(needM+needF!==courts*4)continue;
+        if((mode||'auto')==='mixed'&&(mC>0||fC>0))continue;
+        if((mode||'auto')==='gender'&&xC>0)continue;
+        bestPlan={mC:mC,fC:fC,xC:xC,needM:needM,needF:needF};
+        bestCourts=courts;
+        break outer;
+      }
+    }
+  }
+  if(!bestPlan)return{active:[],waitlist:ins,courts:0,needM:0,needF:0,nM:nM,nF:nF};
+  var needM=bestPlan.needM,needF=bestPlan.needF;
+  // Active: first needM M + first needF F (ordered by contact list order = join order)
+  var inM=ins.filter(function(c){return c.gender==='M';});
+  var inF=ins.filter(function(c){return c.gender==='F';});
+  var activeM=inM.slice(0,needM),activeF=inF.slice(0,needF);
+  var waitM=inM.slice(needM),waitF=inF.slice(needF);
+  return{active:activeM.concat(activeF),waitlist:waitM.concat(waitF),
+         courts:bestCourts,needM:needM,needF:needF,nM:nM,nF:nF};
+}
+
+function renderWaitlist(){
+  var el=document.getElementById('waitlist-section');
+  if(!el)return;
+  if(!schedule){el.style.display='none';return;}
+  var rsvps=schedule.rsvps||{};
+  var hasAnyYes=Object.values(rsvps).some(function(v){return v==='yes';});
+  if(!hasAnyYes){el.style.display='none';return;}
+  var wl=calcWaitlist(schedule.mode);
+  el.style.display='block';
+  var waitCount=wl.waitlist.length;
+  var waitM=wl.waitlist.filter(function(c){return c.gender==='M';}).length;
+  var waitF=wl.waitlist.filter(function(c){return c.gender==='F';}).length;
+  // What's needed to clear waitlist
+  var neededM=Math.max(0,wl.nM-wl.needM),neededF=Math.max(0,wl.nF-wl.needF);
+  var html='<div class="card" style="margin-bottom:12px">';
+  html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">🎾 Court Status</div>';
+  html+='<div style="font-size:13px;margin-bottom:6px">'+wl.courts+' full courts · '+wl.nM+'M + '+wl.nF+'F RSVPed</div>';
+  if(waitCount===0){
+    html+='<div style="font-size:12px;color:var(--green-dk)">✅ Everyone fits — no waitlist</div>';
+    // Show what next court needs
+    var nextM=0,nextF=0;
+    for(var x=1;x<=4;x++){
+      var np=null,nc=0;
+      for(var mC2=0;mC2<=wl.courts+1;mC2++){for(var fC2=0;fC2<=wl.courts+1-mC2;fC2++){
+        var xC2=wl.courts+1-mC2-fC2;
+        var nM2=mC2*4+xC2*2,nF2=fC2*4+xC2*2;
+        if(nM2+nF2!==(wl.courts+1)*4)continue;
+        if(nM2<=wl.nM+4&&nF2<=wl.nF+4){np={needM:nM2,needF:nF2};nc=wl.courts+1;break;}
+      }if(np)break;}
+      if(np){nextM=Math.max(0,np.needM-wl.nM);nextF=Math.max(0,np.needF-wl.nF);break;}
+    }
+    if(nextM||nextF){
+      html+='<div style="font-size:12px;color:var(--text2);margin-top:4px">Next court needs: ';
+      if(nextM)html+=nextM+'M ';
+      if(nextF)html+=nextF+'F ';
+      html+='more</div>';
+    }
+  } else {
+    html+='<div style="font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:6px 10px;margin-bottom:8px">';
+    html+='⏳ <b>'+waitCount+' on waitlist</b>';
+    if(waitM)html+=' · '+waitM+'M';
+    if(waitF)html+=' · '+waitF+'F';
+    html+='</div>';
+    html+='<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Waitlisted players:</div>';
+    wl.waitlist.forEach(function(c){
+      var badge=c.gender==='M'?'<span style="background:#E8F4FD;color:#1565C0;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">M</span>':'<span style="background:#FCE4EC;color:#C62828;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">F</span>';
+      html+='<div style="font-size:12px;padding:3px 0">'+c.name+badge+'</div>';
+    });
+    // What's needed to promote
+    html+='<div style="font-size:12px;color:var(--text2);margin-top:8px">To promote from waitlist: need ';
+    if(waitM>0)html+=waitM+'F more';
+    else if(waitF>0)html+=waitF+'M more';
+    html+='</div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
 function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
@@ -953,8 +1047,12 @@ function autoSyncRsvpsToSchedule(){
     if(schedDay!==null&&c.availDays&&c.availDays.length&&c.availDays.includes(schedDay))return false;
     return true;
   });
-  schedule.selected=inPlayers.map(p=>p.id);
-  if(inPlayers.length>=4)genScheduleSilent(inPlayers);
+  // Apply waitlist: only include active (non-waitlisted) players
+  var wl=calcWaitlist(schedule.mode);
+  var activeIds=wl.active.length>0?new Set(wl.active.map(function(c){return c.id;})):null;
+  var activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
+  schedule.selected=activePlayers.map(p=>p.id);
+  if(activePlayers.length>=4)genScheduleSilent(activePlayers);
   else{schedule.matches=[];schedule.generated=false;renderSchedule();}
 }
 function setRsvpQuickSunday(){const t=new Date();const diff=t.getDay()===0?7:7-t.getDay();const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Sunday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
