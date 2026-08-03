@@ -856,9 +856,6 @@ function renderWaitlist(){
   html+='<div style="font-size:13px;margin-bottom:6px">'+wl.courts+' full courts · '+wl.nM+'M + '+wl.nF+'F RSVPed</div>';
   if(waitCount===0){
     html+='<div style="font-size:12px;color:var(--green-dk)">✅ Everyone fits — no waitlist</div>';
-    if(adminUnlocked){
-      html+='<div style="font-size:11px;color:var(--text2);margin-top:4px">Waitlist override is off — only active players in schedule</div>';
-    }
     // Show what next court needs
     var nextM=0,nextF=0;
     for(var x=1;x<=4;x++){
@@ -921,6 +918,15 @@ function renderWaitlist(){
       html+='<button class="btn btn-sm '+(overrideActive?'btn-primary':'btn-outline')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON — all players included':'Enable override (add waitlist as subs)')+' </button>';
       html+='</div>';
     }
+  }
+  // Admin override - always show when admin
+  if(adminUnlocked&&schedule){
+    var overrideActive=schedule.waitlistOverride;
+    html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+    html+='<div style="font-size:12px;font-weight:600;margin-bottom:4px">🔧 Admin: Waitlist override</div>';
+    html+='<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Include waitlisted players in schedule as subs (they sit out in normal rotation)</div>';
+    html+='<button class="btn btn-sm '+(overrideActive?'btn-primary':'')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON — all players included':'Enable override')+' </button>';
+    html+='</div>';
   }
   html+='</div>';
   el.innerHTML=html;
