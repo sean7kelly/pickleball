@@ -782,6 +782,13 @@ function getRsvpTime(val){
   return 0; // old format - no timestamp
 }
 
+function toggleWaitlistOverride(){
+  if(!schedule)return;
+  schedule.waitlistOverride=!schedule.waitlistOverride;
+  renderWaitlist();
+  autoSyncRsvpsToSchedule();
+}
+
 function calcWaitlist(mode){
   // Get all 'yes' RSVPs for current schedule
   if(!schedule)return{active:[],waitlist:[],courts:0,needM:0,needF:0,nM:0,nF:0};
@@ -849,6 +856,9 @@ function renderWaitlist(){
   html+='<div style="font-size:13px;margin-bottom:6px">'+wl.courts+' full courts · '+wl.nM+'M + '+wl.nF+'F RSVPed</div>';
   if(waitCount===0){
     html+='<div style="font-size:12px;color:var(--green-dk)">✅ Everyone fits — no waitlist</div>';
+    if(adminUnlocked){
+      html+='<div style="font-size:11px;color:var(--text2);margin-top:4px">Waitlist override is off — only active players in schedule</div>';
+    }
     // Show what next court needs
     var nextM=0,nextF=0;
     for(var x=1;x<=4;x++){
@@ -883,12 +893,21 @@ function renderWaitlist(){
     if(waitM>0)html+=waitM+'F more';
     else if(waitF>0)html+=waitF+'M more';
     html+='</div>';
+    // Admin override button
+    if(adminUnlocked){
+      var overrideActive=schedule.waitlistOverride;
+      html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+      html+='<div style="font-size:12px;font-weight:600;margin-bottom:6px">Admin override</div>';
+      html+='<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Include waitlisted players in schedule as subs (they will play and sit out in rotation)</div>';
+      html+='<button class="btn btn-sm '+(overrideActive?'btn-primary':'btn-outline')+'" onclick="toggleWaitlistOverride()">'+(overrideActive?'✓ Override ON — all players included':'Enable override (add waitlist as subs)')+' </button>';
+      html+='</div>';
+    }
   }
   html+='</div>';
   el.innerHTML=html;
 }
 
-function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
@@ -1079,7 +1098,21 @@ async function setRsvp(id,val){
       const doneMsg=document.getElementById('rsvp-done-msg');
       if(doneWrap) doneWrap.style.display='block';
       if(tapHint) tapHint.style.display='none';
-      if(doneMsg) doneMsg.textContent=val==='yes'?'You\'re In! See you on the court 🎉':'Got it — you\'re marked Out.';
+      if(doneMsg){
+        if(val==='yes'){
+          // Check if on waitlist
+          setTimeout(function(){
+            var wl=calcWaitlist(schedule?schedule.mode:'auto');
+            var onWaitlist=wl.waitlist.some(function(c){return c.id===id;});
+            doneMsg.textContent=onWaitlist
+              ?"You\'re on the waitlist! We\'ll move you into the lineup as soon as enough players sign up to create even teams. 🙏"
+              :"You\'re In! See you on the court 🎉";
+            doneMsg.style.color=onWaitlist?'var(--amber-tx)':'';
+          },200);
+        } else {
+          doneMsg.textContent='Got it — you\'re marked Out.';
+        }
+      }
     },400);
   }
   const c=contacts.find(x=>x.id===id);if(!c)return;
@@ -1113,8 +1146,14 @@ function autoSyncRsvpsToSchedule(){
   });
   // Apply waitlist: only include active (non-waitlisted) players
   var wl=calcWaitlist(schedule.mode);
-  var activeIds=wl.active.length>0?new Set(wl.active.map(function(c){return c.id;})):null;
-  var activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
+  var activePlayers;
+  if(schedule.waitlistOverride){
+    // Override: include everyone (waitlisted players sit out in rotation)
+    activePlayers=inPlayers;
+  } else {
+    var activeIds=wl.active.length>0?new Set(wl.active.map(function(c){return c.id;})):null;
+    activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
+  }
   schedule.selected=activePlayers.map(p=>p.id);
   if(activePlayers.length>=4)genScheduleSilent(activePlayers);
   else{schedule.matches=[];schedule.generated=false;renderSchedule();}
