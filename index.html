@@ -343,11 +343,16 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div id="rsvp-no-schedule-bar">
       <div class="admin-only"><button class="btn btn-primary" onclick="createScheduleFromContacts()">▶ Create RSVP tracking</button></div>
     </div>
+    <!-- Multiple schedules on same date picker -->
+    <div id="rsvp-multi-picker" style="display:none;margin-top:8px">
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Multiple schedules found — pick one:</label>
+      <select id="rsvp-multi-select" style="width:100%;height:36px"></select>
+    </div>
     <!-- RSVP cutoff (admin only) -->
     <div id="rsvp-cutoff-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);margin-top:8px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Close registration:</label>
-      <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" />
-      <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" />
+      <input type="date" id="rsvp-cutoff-date" style="width:160px;height:32px" onchange="saveRsvpCutoff()" oninput="saveRsvpCutoff()" />
+      <input type="time" id="rsvp-cutoff-time" style="width:110px;height:32px" value="23:59" onchange="saveRsvpCutoff()" oninput="saveRsvpCutoff()" />
       <button class="btn btn-xs btn-danger" onclick="clearRsvpCutoff()">✕ Remove</button>
       <span id="rsvp-cutoff-status" style="font-size:12px;color:var(--text2)"></span>
     </div>
@@ -396,7 +401,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div class="card" style="text-align:center;padding:24px 20px;border:2px solid var(--red)">
       <div style="font-size:32px;margin-bottom:8px">🔒</div>
       <div style="font-size:18px;font-weight:700;margin-bottom:6px">Registration Closed</div>
-      <div style="font-size:13px;color:var(--text2)">The RSVP deadline has passed. Contact the organizer if you need to make a change.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">The RSVP deadline has passed. Contact the organizer if you need to make a change.</div>
+      <button class="btn btn-sm" onclick="adminOverrideClosed()" style="opacity:0.5;font-size:11px">🔑 Organizer access</button>
     </div>
   </div>
 
@@ -470,7 +476,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         </div>
         <div id="lock-bar" style="display:inline-flex;align-items:center;gap:6px;position:relative">
           <button class="btn btn-sm" id="lock-btn" onclick="togglePinPad()" style="font-size:11px">🔒 Admin</button>
-          <div class="pin-wrap" id="pin-wrap" style="position:absolute;right:0;top:32px;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:220px">
+          <div class="pin-wrap" id="pin-wrap" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:200;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:var(--r);padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:220px">
             <div style="font-size:13px;font-weight:600;margin-bottom:8px" id="lock-msg">Enter PIN</div>
             <div class="pin-display">
               <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
@@ -580,6 +586,7 @@ function slimSchedule(s){
   return {
     id:s.id, name:s.name||'Sunday Schedule', date:s.date||'', raw_date:s.rawDate||'',
     rounds:s.rounds||10, mode:s.mode||'auto',
+    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null,
     generated:s.generated||false, selected:s.selected||[], rsvps:s.rsvps||{},
     matches:(s.matches||[]).map(function(round){
       return {
@@ -628,12 +635,12 @@ function showTab(t,btn){
 let adminUnlocked=false,pinBuffer='';
 function hashPin(pin){let h=0;for(let i=0;i<pin.length;i++){h=((h<<5)-h)+pin.charCodeAt(i);h|=0;}return'pb_'+Math.abs(h).toString(36);}
 function storedHash(){return settings.pin_hash||hashPin('1234');}
-function togglePinPad(){if(adminUnlocked){lockAdmin();return;}document.getElementById('pin-wrap').classList.toggle('open');pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
+function togglePinPad(){if(adminUnlocked){lockAdmin();return;}const pw=document.getElementById('pin-wrap');const po=document.getElementById('pin-overlay');pw.classList.toggle('open');if(po)po.style.display=pw.classList.contains('open')?'block':'none';pinBuffer='';updatePinDots();document.getElementById('pin-err').textContent='';}
 function pinKey(k){if(k==='x')pinBuffer=pinBuffer.slice(0,-1);else if(k==='clear')pinBuffer='';else if(pinBuffer.length<4)pinBuffer+=k;updatePinDots();if(pinBuffer.length===4)setTimeout(()=>{if(hashPin(pinBuffer)===storedHash())unlockAdmin();else{document.getElementById('pin-err').textContent='Incorrect PIN';pinBuffer='';updatePinDots();}},150);}
 function updatePinDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('filled',i<pinBuffer.length);}
 function unlockAdmin(){
   adminUnlocked=true;pinBuffer='';updatePinDots();
-  document.getElementById('pin-wrap').classList.remove('open');
+  document.getElementById('pin-wrap').classList.remove('open');const _po=document.getElementById('pin-overlay');if(_po)_po.style.display='none';
   document.getElementById('pin-err').textContent='';
   document.getElementById('lock-msg').textContent='🔓 Admin unlocked';
   document.getElementById('lock-btn').textContent='🔓 Admin';
@@ -742,8 +749,11 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     if(adminCard) adminCard.style.display='none';
     if(filterBar) filterBar.style.display='none';
     if(lockBar) lockBar.style.display='none';
+    // In RSVP landing mode hide the invite/tracking card
     document.querySelectorAll('.card').forEach(function(c){
-      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#invite-section')||c.querySelector('#rsvp-no-schedule-bar')) c.style.display='none';
+      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#rsvp-no-schedule-bar')){
+        c.style.display='none';
+      }
     });
     // Show verify screen if not yet verified
     const verifyScreen=document.getElementById('rsvp-verify-screen');
@@ -768,17 +778,25 @@ function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[on
     if(rsvpHeader&&schedule) rsvpHeader.querySelector('.rsvp-landing-title').textContent=schedule.name+(schedule.date?' — '+schedule.date:'');
   } else {
     if(rsvpHeader) rsvpHeader.style.display='none';
+    // Restore any cards that may have been hidden by previous RSVP landing mode
+    document.querySelectorAll('.card').forEach(function(c){
+      if(c.querySelector('#rsvp-schedule-bar')||c.querySelector('#rsvp-no-schedule-bar')){
+        if(c.style.display==='none') c.style.display='';
+      }
+    });
   }
 
   const invited=contacts.filter(c=>c.invited!==false);
   const yesCount=contacts.filter(c=>rsvpMap[String(c.id)]==='yes').length;
   const noCount=contacts.filter(c=>rsvpMap[String(c.id)]==='no').length;
-  // Show/hide cutoff bar based on admin + schedule
+  // Show/hide cutoff bar and invite section based on admin + schedule
   var cutoffBar=document.getElementById('rsvp-cutoff-bar');
   if(cutoffBar){
     cutoffBar.style.display=(adminUnlocked&&schedule)?'flex':'none';
     if(adminUnlocked&&schedule) updateCutoffUI();
   }
+  var invSec=document.getElementById('invite-section');
+  if(invSec&&!rsvpLandingMode) invSec.style.display=(schedule?'block':'none');
   // contacts-hd updated below after sorted is built
   document.getElementById('contact-count').textContent=`${invited.length} selected`;
   document.getElementById('invite-sel-count').textContent=`${invited.length} of ${contacts.length} selected`;
@@ -988,7 +1006,39 @@ async function createScheduleFromContacts(){
   updateRsvpLinkSection();
   renderContacts();
 }
-function switchRsvpSchedule(){schedule=null;renderContacts();}
+function switchRsvpSchedule(){
+  if(!schedules.length){alert('No schedules available.');return;}
+  var opts=schedules.map(function(s){return '<option value="'+s.id+'"'+(schedule&&schedule.id===s.id?' selected':'')+'>'+s.name+(s.date?' · '+s.date:'')+'</option>';}).join('');
+  var bar=document.getElementById('rsvp-schedule-bar');
+  var existingPicker=document.getElementById('rsvp-switch-picker');
+  if(existingPicker){existingPicker.remove();return;}
+  var picker=document.createElement('div');
+  picker.id='rsvp-switch-picker';
+  picker.style.cssText='display:flex;align-items:center;gap:8px;margin-top:8px;width:100%';
+  var cancelBtn=document.createElement('button');
+  cancelBtn.className='btn btn-sm';
+  cancelBtn.textContent='Cancel';
+  cancelBtn.onclick=function(){var p=document.getElementById('rsvp-switch-picker');if(p)p.remove();};
+  var confirmBtn=document.createElement('button');
+  confirmBtn.className='btn btn-primary btn-sm';
+  confirmBtn.textContent='Select';
+  confirmBtn.onclick=confirmRsvpSwitch;
+  var sel=document.createElement('select');
+  sel.id='rsvp-switch-sel';
+  sel.style.cssText='flex:1;height:36px;font-size:13px';
+  sel.innerHTML=opts;
+  picker.appendChild(sel);picker.appendChild(confirmBtn);picker.appendChild(cancelBtn);
+  bar.after(picker);
+}
+function confirmRsvpSwitch(){
+  var sel=document.getElementById('rsvp-switch-sel');
+  if(!sel)return;
+  var id=+sel.value;
+  var s=schedules.find(function(x){return x.id===id;});
+  if(s){schedule=s;updateRsvpLinkSection();buildInviteMsg();renderContacts();}
+  var picker=document.getElementById('rsvp-switch-picker');
+  if(picker)picker.remove();
+}
 function renderScheduleList(){
   const listCard=document.getElementById('sched-list-card'),controls=document.getElementById('sched-controls');
   if(schedule){
@@ -1047,6 +1097,64 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   // Reset runtime play counters (not persisted)
   (pairs||[]).forEach(function(p){p._played=0;});
   (fixedMatches||[]).forEach(function(fm){fm._played=0;});
+
+  // Pre-assign pair rounds randomly, respecting player conflicts
+  var pairRoundAssignments=[];
+  for(var ri=0;ri<ROUNDS;ri++) pairRoundAssignments.push([]);
+  var playerRoundUsage={};
+  var pairWarnings=[];
+  // Sort pairs most-constrained-first: players appearing in more pairs get priority
+  var playerPairCount={};
+  (pairs||[]).forEach(function(p){
+    playerPairCount[p.p1]=(playerPairCount[p.p1]||0)+1;
+    playerPairCount[p.p2]=(playerPairCount[p.p2]||0)+1;
+  });
+  var sortedPairs=(pairs||[]).slice().sort(function(a,b){
+    var aScore=(playerPairCount[a.p1]||0)+(playerPairCount[a.p2]||0);
+    var bScore=(playerPairCount[b.p1]||0)+(playerPairCount[b.p2]||0);
+    return bScore-aScore; // most constrained first
+  });
+  sortedPairs.forEach(function(pair){
+    var available=[];
+    for(var ri=0;ri<ROUNDS;ri++){
+      var p1used=playerRoundUsage[pair.p1]&&playerRoundUsage[pair.p1].indexOf(ri)>=0;
+      var p2used=playerRoundUsage[pair.p2]&&playerRoundUsage[pair.p2].indexOf(ri)>=0;
+      if(p1used||p2used) continue;
+      // Also skip rounds where either player is in a fixed match
+      var inFixed=false;
+      (fixedMatches||[]).forEach(function(fm){
+        var fmRounds=fm.specificRounds&&fm.specificRounds.length?fm.specificRounds:null;
+        var fmActive=fmRounds?fmRounds.indexOf(ri+1)>=0:(fm._played||0)<(fm.count||1);
+        if(fmActive&&(fm.t1p1===pair.p1||fm.t1p2===pair.p1||fm.t2p1===pair.p1||fm.t2p2===pair.p1||
+                      fm.t1p1===pair.p2||fm.t1p2===pair.p2||fm.t2p1===pair.p2||fm.t2p2===pair.p2)){
+          inFixed=true;
+        }
+      });
+      if(!inFixed) available.push(ri);
+    }
+    var requested=pair.rounds>=99?ROUNDS:pair.rounds;
+    var needed=Math.min(requested,available.length);
+    if(needed<requested){
+      var p1=activePlayers.find(function(p){return p.id===pair.p1;});
+      var p2=activePlayers.find(function(p){return p.id===pair.p2;});
+      var name1=p1?p1.name:pair.p1,name2=p2?p2.name:pair.p2;
+      pairWarnings.push((name1+' & '+name2)+': requested '+requested+' rounds but only '+needed+' available (other pairs conflict)');
+    }
+    // Shuffle available and pick needed
+    for(var i=available.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var tmp=available[i];available[i]=available[j];available[j]=tmp;
+    }
+    var chosen=available.slice(0,needed);
+    console.log('V154-Pair',pair.p1,'+',pair.p2,'available:',available.length,'chosen:',chosen.map(function(r){return r+1;}));
+    chosen.forEach(function(ri){
+      pairRoundAssignments[ri].push(pair);
+      if(!playerRoundUsage[pair.p1]) playerRoundUsage[pair.p1]=[];
+      if(!playerRoundUsage[pair.p2]) playerRoundUsage[pair.p2]=[];
+      playerRoundUsage[pair.p1].push(ri);
+      playerRoundUsage[pair.p2].push(ri);
+    });
+  });
   const COURTS=Math.max(1,Math.floor(activePlayers.length/4)),pH={},sitCts={};
   activePlayers.forEach(p=>sitCts[p.id]=0);
   const pairUsed=(a,b)=>pH[pKey(a.id,b.id)]||0;
@@ -1090,96 +1198,161 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
 }
   const allRounds=[];
   for(let r=0;r<ROUNDS;r++){
+    // ── Round r ──────────────────────────────────────────────────────
     let avail=[...activePlayers],sitters=[];
-    const nM=avail.filter(p=>p.gender==='M').length,nF=avail.filter(p=>p.gender==='F').length,nCourts=COURTS;
-    const maxActive=Math.floor(Math.min(nCourts*4,nM+nF)/4)*4;
-    let bestActive=0;
-    for(let active=maxActive;active>=4;active-=4){let ok=false;for(let m=0;m<=nCourts&&!ok;m++)for(let f=0;f<=nCourts-m&&!ok;f++)for(let x=0;x<=nCourts-m-f&&!ok;x++){if(m*4+x*2>nM||f*4+x*2>nF)continue;if((m*4+x*2)+(f*4+x*2)!==active)continue;if(m+f+x===0)continue;if(mode==='mixed'&&(m>0||f>0))continue;if(mode==='gender'&&x>0)continue;ok=true;}if(ok){bestActive=active;break;}}
-    if(!bestActive){for(let active=maxActive;active>=4;active-=4){let ok=false;for(let m=0;m<=nCourts&&!ok;m++)for(let f=0;f<=nCourts-m&&!ok;f++)for(let x=0;x<=nCourts-m-f&&!ok;x++){if(m*4+x*2>nM||f*4+x*2>nF)continue;if((m*4+x*2)+(f*4+x*2)!==active)continue;if(m+f+x===0)continue;ok=true;}if(ok){bestActive=active;break;}}}
-    const validPlans=[];
-    for(let m=0;m<=nCourts;m++)for(let f=0;f<=nCourts-m;f++)for(let x=0;x<=nCourts-m-f;x++){if(m*4+x*2>nM||f*4+x*2>nF)continue;if((m*4+x*2)+(f*4+x*2)!==bestActive)continue;if(m+f+x===0)continue;if(mode==='mixed'&&(m>0||f>0))continue;if(mode==='gender'&&x>0)continue;const div=(m>0?1:0)+(f>0?1:0)+(x>0?1:0);validPlans.push({m,f,x,div});}
-    if(!validPlans.length){for(let m=0;m<=nCourts;m++)for(let f=0;f<=nCourts-m;f++)for(let x=0;x<=nCourts-m-f;x++){if(m*4+x*2>nM||f*4+x*2>nF)continue;if((m*4+x*2)+(f*4+x*2)!==bestActive)continue;if(m+f+x===0)continue;const div=(m>0?1:0)+(f>0?1:0)+(x>0?1:0);validPlans.push({m,f,x,div});}}
-    validPlans.sort((a,b)=>b.div-a.div);
-    let chosen=validPlans[0]||{m:0,f:0,x:0,div:0};
-    if(validPlans.length>1){if(mode==='auto'){const bd=validPlans[0].div;if(bd<3){chosen=validPlans[r%validPlans.length];}else{if(r%3===2)chosen=validPlans[1];}}else{chosen=validPlans[r%validPlans.length];}}
-    let{m:mC,f:fC,x:xC}=chosen;
-    const mNeeded=mC*4+xC*2,fNeeded=fC*4+xC*2;
-    const availM=[...avail].filter(p=>p.gender==='M').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
-    const availF=[...avail].filter(p=>p.gender==='F').sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0));
-    const sitM=Math.max(0,availM.length-mNeeded),sitF=Math.max(0,availF.length-fNeeded);
-    sitters=[...availM.slice(0,sitM),...availF.slice(0,sitF)];
+
+    // 1. Pre-place fixed matches (remove their players from avail)
+    var preFixed=[];
+    (fixedMatches||[]).forEach(function(fm){
+      var shouldPlay=fm.specificRounds&&fm.specificRounds.length
+        ?fm.specificRounds.includes(r+1):(fm._played||0)<(fm.count||1);
+      if(!shouldPlay)return;
+      var a=avail.find(p=>p.id===fm.t1p1),b=avail.find(p=>p.id===fm.t1p2);
+      var c=avail.find(p=>p.id===fm.t2p1),d=avail.find(p=>p.id===fm.t2p2);
+      if(a&&b&&c&&d){
+        preFixed.push({fm:fm,t1:[a,b],t2:[c,d]});
+        avail=avail.filter(p=>p.id!==a.id&&p.id!==b.id&&p.id!==c.id&&p.id!==d.id);
+      }
+    });
+
+    // 2. Get forced pairs for this round
+    var roundPairs=pairRoundAssignments[r]||[];
+    var pairPlayerIds=new Set();
+    roundPairs.forEach(function(fp){pairPlayerIds.add(fp.p1);pairPlayerIds.add(fp.p2);});
+
+    // 3. Calculate courts
+    //    totalCourts = floor(avail/4)
+    //    pairCourts  = one per forced pair
+    //    randCourts  = totalCourts - pairCourts
+    var totalCourts=Math.max(1,Math.floor(avail.length/4));
+    var pairCourts=roundPairs.length;
+    var randCourts=Math.max(0,totalCourts-pairCourts);
+
+    // 4. Sit-out: pick from non-pair, non-fixed players with most sit-outs
+    var sitCount=Math.max(0,avail.length-totalCourts*4);
+    var sitPool=[...avail].filter(p=>!pairPlayerIds.has(p.id))
+                          .sort((a,b)=>(sitCts[b.id]||0)-(sitCts[a.id]||0));
+    sitters=sitPool.slice(0,sitCount);
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
-    const used=new Set(),matches=[];let ci=0;
-    // Get active forced pairs - only those who haven't reached their play count yet
-    if(r===0){pairs.forEach(function(p){if(p._played===undefined)p._played=0;});}
-    const roundPairs=(pairs||[]).filter(function(p){return (p._played||0)<p.rounds;});
-    // Pre-place forced pairs
-    roundPairs.forEach(function(fp){
-      const a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
-      if(a&&b&&!used.has(a.id)&&!used.has(b.id)){used.add(a.id);used.add(b.id);}
-    });
-    // Helper: get forced pair for a pool if applicable, respecting gender/mode rules
-    function getForcedPair(pool,courtType){
-      for(var fi=0;fi<roundPairs.length;fi++){
-        var fp=roundPairs[fi];
-        var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
-        if(!a||!b)continue;
-        // Check gender rules for this court type
-        if(courtType==='mens'&&(a.gender!=='M'||b.gender!=='M'))continue;
-        if(courtType==='womens'&&(a.gender!=='F'||b.gender!=='F'))continue;
-        if(courtType==='mixed'&&a.gender===b.gender)continue;
-        // Check mode rules
-        if(mode==='mixed'&&a.gender===b.gender)continue;
-        if(mode==='gender'&&a.gender!==b.gender)continue;
-        // Both must be in the pool and available
-        var pa=pool.find(p=>p.id===fp.p1&&!used.has(p.id));
-        var pb=pool.find(p=>p.id===fp.p2&&!used.has(p.id));
-        if(pa&&pb)return[fp.p1,fp.p2];
+
+    // 5. Build random courts from non-pair players
+    var used=new Set();
+    // Mark pair players as reserved so random courts don't grab them
+    pairPlayerIds.forEach(id=>used.add(id));
+
+    var matches=[],ci=0;
+    // Solve court type plan for randCourts using non-pair players
+    var randMAll=avail.filter(p=>p.gender==='M'&&!pairPlayerIds.has(p.id)).length;
+    var randFAll=avail.filter(p=>p.gender==='F'&&!pairPlayerIds.has(p.id)).length;
+    // Reserve pairCourts opponents (1M+1F each) from random solver's view
+    var randM=Math.max(0,randMAll-pairCourts);
+    var randF=Math.max(0,randFAll-pairCourts);
+    var maxAct=Math.floor(Math.min(randCourts*4,randM+randF)/4)*4;
+    var bestAct=0;
+    for(let act=maxAct;act>=4;act-=4){
+      let ok=false;
+      for(let m=0;m<=randCourts&&!ok;m++)for(let f=0;f<=randCourts-m&&!ok;f++)for(let x=0;x<=randCourts-m-f&&!ok;x++){
+        if(m*4+x*2>randM||f*4+x*2>randF)continue;
+        if((m*4+x*2)+(f*4+x*2)!==act)continue;
+        if(m+f+x===0)continue;
+        ok=true;
       }
-      return null;
+      if(ok){bestAct=act;break;}
     }
-    // Re-add forced pair members to available (they were pre-marked to check validity)
+    var vplans=[];
+    for(let m=0;m<=randCourts;m++)for(let f=0;f<=randCourts-m;f++)for(let x=0;x<=randCourts-m-f;x++){
+      if(m*4+x*2>randM||f*4+x*2>randF)continue;
+      if((m*4+x*2)+(f*4+x*2)!==bestAct)continue;
+      if(m+f+x===0)continue;
+      vplans.push({m,f,x,div:(m>0?1:0)+(f>0?1:0)+(x>0?1:0)});
+    }
+    if(!vplans.length)vplans=[{m:0,f:0,x:0,div:0}];
+    vplans.sort((a,b)=>b.div-a.div);
+    let{m:mC,f:fC,x:xC}=vplans[vplans.length>1&&mode==='auto'&&vplans[0].div<3?r%vplans.length:0];
+
+    function pick(pool){
+      var t1=bestPair(pool.filter(p=>!used.has(p.id)),null);
+      if(!t1)return null;
+      t1.forEach(p=>used.add(p.id));
+      var t2=bestPair(pool.filter(p=>!used.has(p.id)),null);
+      if(!t2){t1.forEach(p=>used.delete(p.id));return null;}
+      t2.forEach(p=>used.add(p.id));
+      markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);
+      return{t1,t2};
+    }
+    function pickM(){return pick(avail.filter(p=>p.gender==='M'));}
+    function pickF(){return pick(avail.filter(p=>p.gender==='F'));}
+    function pickX(){
+      var m=avail.filter(p=>p.gender==='M'&&!used.has(p.id));
+      var f=avail.filter(p=>p.gender==='F'&&!used.has(p.id));
+      var res=buildMixed(m,f);
+      if(!res)return null;
+      res.t1.forEach(p=>used.add(p.id));res.t2.forEach(p=>used.add(p.id));
+      markPair(res.t1[0],res.t1[1]);markPair(res.t2[0],res.t2[1]);
+      return res;
+    }
+
+    for(let c=0;c<mC;c++){var r2=pickM();if(r2)matches.push({type:'mens',team1:r2.t1,team2:r2.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    for(let c=0;c<fC;c++){var r2=pickF();if(r2)matches.push({type:'womens',team1:r2.t1,team2:r2.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+    for(let c=0;c<xC;c++){var r2=pickX();if(r2)matches.push({type:'mixed',team1:r2.t1,team2:r2.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
+
+    // 6. Place forced pair courts
+    // First remove pair reservation from used (they were reserved to block random courts)
     roundPairs.forEach(function(fp){used.delete(fp.p1);used.delete(fp.p2);});
-    // Track which pairs get successfully placed this round
-    var pairedThisRound=new Set();
-    for(let c=0;c<mC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),'mens');const t1=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='M'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'mens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<fC;c++){const fp=getForcedPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),'womens');const t1=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),fp);if(fp&&t1&&t1[0].id===fp[0]&&t1[1].id===fp[1])pairedThisRound.add(fp[0]+':'+fp[1]);if(!t1)continue;t1.forEach(p=>used.add(p.id));const t2=bestPair(avail.filter(p=>p.gender==='F'&&!used.has(p.id)),null);if(!t2)continue;t2.forEach(p=>used.add(p.id));markPair(t1[0],t1[1]);markPair(t2[0],t2[1]);matches.push({type:'womens',team1:t1,team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    for(let c=0;c<xC;c++){const avM=avail.filter(p=>p.gender==='M'&&!used.has(p.id));const avF=avail.filter(p=>p.gender==='F'&&!used.has(p.id));const result=buildMixed(avM,avF);if(!result)continue;result.t1.forEach(p=>used.add(p.id));result.t2.forEach(p=>used.add(p.id));markPair(result.t1[0],result.t1[1]);markPair(result.t2[0],result.t2[1]);matches.push({type:'mixed',team1:result.t1,team2:result.t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});}
-    // Increment play count only for pairs that were actually placed together
+    // Collect pair court data without marking them used yet
+    var pairCourtsData=[];
     roundPairs.forEach(function(fp){
-      if(pairedThisRound.has(fp.p1+':'+fp.p2)||pairedThisRound.has(fp.p2+':'+fp.p1)){
+      var a=avail.find(p=>p.id===fp.p1),b=avail.find(p=>p.id===fp.p2);
+      if(!a||!b)return;
+      if(mode==='mixed'&&a.gender===b.gender)return;
+      if(mode==='gender'&&a.gender!==b.gender)return;
+      var ctype=a.gender===b.gender?(a.gender==='M'?'mens':'womens'):'mixed';
+      pairCourtsData.push({fp:fp,a:a,b:b,ctype:ctype});
+    });
+    // Place each pair court: mark pair as used, find opponents from non-pair remainder
+    var placedPairs=new Set();
+    var allPairIds=new Set(roundPairs.reduce(function(s,fp){return s.concat([fp.p1,fp.p2]);},[]));
+    pairCourtsData.forEach(function(pc){
+      used.add(pc.a.id);used.add(pc.b.id);
+      // Find opponents: non-used AND not other pairs' players
+      var rem=avail.filter(p=>!used.has(p.id)&&!allPairIds.has(p.id));
+      // Fallback: include other pair players if needed
+      if(rem.length<2) rem=avail.filter(p=>!used.has(p.id));
+      var remM=rem.filter(p=>p.gender==='M'),remF=rem.filter(p=>p.gender==='F');
+      var t2=null;
+      if(pc.ctype==='mixed'){
+        var oM=remM[0],oF=remF[0];
+        if(oM&&oF){used.add(oM.id);used.add(oF.id);t2=[oM,oF];}
+      } else if(pc.ctype==='mens'){
+        var t2p=bestPair(remM,null);
+        if(t2p){t2p.forEach(p=>used.add(p.id));t2=t2p;}
+      } else {
+        var t2p=bestPair(remF,null);
+        if(t2p){t2p.forEach(p=>used.add(p.id));t2=t2p;}
+      }
+      if(!t2)return;
+      placedPairs.add(pc.fp.p1+':'+pc.fp.p2);
+      markPair(pc.a,pc.b);markPair(t2[0],t2[1]);
+      matches.push({type:pc.ctype,team1:[pc.a,pc.b],team2:t2,score1:'',score2:'',id:`${r}c${ci++}`,recorded:false});
+    });
+
+    // 7. Track _played for placed pairs
+    roundPairs.forEach(function(fp){
+      if(placedPairs.has(fp.p1+':'+fp.p2)||placedPairs.has(fp.p2+':'+fp.p1))
         fp._played=(fp._played||0)+1;
-      }
     });
 
-    // Inject fixed matches for this round
-    (fixedMatches||[]).forEach(function(fm){
-      const shouldPlay=fm.specificRounds&&fm.specificRounds.length
-        ? fm.specificRounds.includes(r+1)
-        : (fm._played||0)<(fm.count||1);
-      if(!shouldPlay)return;
-      const t1p1=activePlayers.find(function(p){return p.id===fm.t1p1;});
-      const t1p2=activePlayers.find(function(p){return p.id===fm.t1p2;});
-      const t2p1=activePlayers.find(function(p){return p.id===fm.t2p1;});
-      const t2p2=activePlayers.find(function(p){return p.id===fm.t2p2;});
-      if(t1p1&&t1p2&&t2p1&&t2p2){
-        // Remove these players from matches if already placed, then add fixed match
-        matches=matches.filter(function(m){
-          const ids=[t1p1.id,t1p2.id,t2p1.id,t2p2.id];
-          const mIds=m.team1.concat(m.team2).map(function(p){return p.id;});
-          return!mIds.some(function(id){return ids.includes(id);});
-        });
-        matches.push({type:'mixed',team1:[t1p1,t1p2],team2:[t2p1,t2p2],score1:'',score2:'',id:r+'fm'+(fm._played||0),recorded:false,fixed:true});
-        fm._played=(fm._played||0)+1;
-        // Remove from sitters if there
-        sitters=sitters.filter(function(p){return![t1p1.id,t1p2.id,t2p1.id,t2p2.id].includes(p.id);});
-      }
+    // 8. Add pre-placed fixed matches
+    preFixed.forEach(function(pf){
+      matches.push({type:'mixed',team1:pf.t1,team2:pf.t2,score1:'',score2:'',id:r+'fm'+(pf.fm._played||0),recorded:false,fixed:true});
+      pf.fm._played=(pf.fm._played||0)+1;
+      sitters=sitters.filter(p=>![pf.t1[0].id,pf.t1[1].id,pf.t2[0].id,pf.t2[1].id].includes(p.id));
     });
 
-    allRounds.push({round:r+1,matches,sitters});
+    allRounds.push({round:r+1,matches:matches,sitters:sitters});
   }
-  return allRounds;
+  return {rounds:allRounds,warnings:pairWarnings};
 }
 async function genSchedule(){
   const sel=schedule?schedule.selected:[];
@@ -1187,19 +1360,28 @@ async function genSchedule(){
   document.getElementById('sched-alert').innerHTML='';
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  schedule.matches=buildResult.rounds;
+  var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
   schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
+  renderPairs();
+  if(typeof pairWarnings!=='undefined'&&pairWarnings.length){
+    document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">⚠️ Some pairs couldn\'t be fully honored:<br>'+pairWarnings.map(function(w){return '• '+w;}).join('<br>')+'</div>';
+  }
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
 function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
-  schedule.matches=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,schedule.pairs||[],schedule.fixedMatches||[]);
+  schedule.matches=buildResult.rounds;
+  var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   renderSchedule();
+  renderPairs();
 }
 const typeLabel={mixed:'Mixed doubles',mens:"Men's doubles",womens:"Women's doubles"};
 const typeBadge={mixed:'bg-green',mens:'bg-blue',womens:'bg-pink'};
@@ -1207,7 +1389,6 @@ function renderSchedule(){
   const out=document.getElementById('sched-out');
   const backBar=document.getElementById('sched-back-bar');
   const viewName=document.getElementById('sched-view-name');
-  console.log('renderSchedule: schedule=',schedule?schedule.name:'null', 'generated=',schedule?.generated, 'matches=',schedule?.matches?.length);
   if(schedule&&backBar){backBar.style.display='flex';backBar.style.alignItems='center';}
   if(!schedule&&backBar){backBar.style.display='none';}
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
@@ -1253,21 +1434,55 @@ function onInviteDateChange(){
   if(!dateVal){buildInviteMsg();return;}
   var d=new Date(dateVal+'T12:00:00');
   var dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var existing=schedules.find(function(s){return s.date===dateStr||s.rawDate===dateVal;});
+  var matches=schedules.filter(function(s){return s.date===dateStr||s.rawDate===dateVal;});
   var schedBar=document.getElementById('rsvp-schedule-bar');
   var noSchedBar=document.getElementById('rsvp-no-schedule-bar');
   var nameEl=document.getElementById('rsvp-schedule-name');
-  if(existing){
-    schedule=existing;
-    if(schedBar) schedBar.style.display='flex';
-    if(noSchedBar) noSchedBar.style.display='none';
-    if(nameEl) nameEl.textContent=existing.name+(existing.date?' · '+existing.date:'');
-    updateRsvpLinkSection();
-  } else {
+  var multiPicker=document.getElementById('rsvp-multi-picker');
+
+  if(matches.length===0){
     if(schedBar) schedBar.style.display='none';
     if(noSchedBar) noSchedBar.style.display='block';
+    if(multiPicker) multiPicker.style.display='none';
+    var invSec=document.getElementById('invite-section');
+    if(invSec) invSec.style.display='none';
+  } else if(matches.length===1){
+    if(multiPicker) multiPicker.style.display='none';
+    selectInviteSchedule(matches[0].id);
+  } else {
+    // Multiple schedules on same date - show picker
+    if(schedBar) schedBar.style.display='none';
+    if(noSchedBar) noSchedBar.style.display='none';
+    if(multiPicker){
+      multiPicker.style.display='block';
+      var sel=document.getElementById('rsvp-multi-select');
+      if(sel){
+        sel.innerHTML=matches.map(function(s){
+          return '<option value="'+s.id+'">'+s.name+(s.date?' — '+s.date:'')+'</option>';
+        }).join('');
+        sel.onchange=function(){selectInviteSchedule(+sel.value);};
+        selectInviteSchedule(matches[0].id);
+      }
+    }
   }
   buildInviteMsg();
+}
+
+function selectInviteSchedule(id){
+  var s=schedules.find(function(x){return x.id===id;});
+  if(!s)return;
+  schedule=s;
+  var schedBar=document.getElementById('rsvp-schedule-bar');
+  var noSchedBar=document.getElementById('rsvp-no-schedule-bar');
+  var nameEl=document.getElementById('rsvp-schedule-name');
+  if(schedBar) schedBar.style.display='flex';
+  if(noSchedBar) noSchedBar.style.display='none';
+  if(nameEl) nameEl.textContent=s.name+(s.date?' · '+s.date:'');
+  var invSec=document.getElementById('invite-section');
+  if(invSec) invSec.style.display='block';
+  updateRsvpLinkSection();
+  buildInviteMsg();
+  renderContacts();
 }
 function buildInviteMsg(){
   var invDateEl=document.getElementById('invite-date');
@@ -1450,6 +1665,27 @@ function renderFixedMatches(){
       '<button class="btn btn-xs btn-danger" onclick="removeFixedMatch('+i+')" style="margin-left:auto">✕</button>'+
       '</div></div>';
   }).join('');
+  // Warn if any fixed match player overlaps with a forced pair
+  if(fms.length&&schedule){
+    const pairs=schedule.pairs||[];
+    const pairIds=new Set();
+    pairs.forEach(function(p){pairIds.add(p.p1);pairIds.add(p.p2);});
+    const overlaps=[];
+    fms.forEach(function(fm){
+      [fm.t1p1,fm.t1p2,fm.t2p1,fm.t2p2].forEach(function(id){
+        if(pairIds.has(id)){
+          const c=contacts.find(function(x){return x.id===id;});
+          if(c&&!overlaps.includes(c.name)) overlaps.push(c.name);
+        }
+      });
+    });
+    if(overlaps.length){
+      const warn=document.createElement('div');
+      warn.style.cssText='font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:6px 10px;margin-top:6px';
+      warn.textContent='⚠️ '+overlaps.join(', ')+' also appear in forced pairs. Fixed matches take priority on those rounds.';
+      list.appendChild(warn);
+    }
+  }
 }
 
 function addFixedMatch(){
@@ -1512,8 +1748,10 @@ function updateCutoffUI(){
   if(!cutoffEl)return;
   if(schedule.rsvpCutoff){
     const dt=new Date(schedule.rsvpCutoff);
-    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
-    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    // Convert to local date/time for display
+    const localISO=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString();
+    cutoffEl.value=localISO.slice(0,10);
+    cutoffTimeEl.value=localISO.slice(11,16)||'23:59';
     const now=new Date();
     const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
@@ -1534,9 +1772,14 @@ async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
-  schedule.rsvpCutoff=d?d+'T'+t:null;
+  if(d){
+    const dt=new Date(d+'T'+t+':00');
+    schedule.rsvpCutoff=dt.toISOString();
+  } else {
+    schedule.rsvpCutoff=null;
+  }
   updateCutoffUI();
-  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
 
 async function clearRsvpCutoff(){
@@ -1549,10 +1792,26 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  return new Date()>new Date(schedule.rsvpCutoff);
+  var dt=new Date(schedule.rsvpCutoff);
+  return new Date()>dt;
 }
 
 /* ── RSVP phone verification ── */
+function adminOverrideClosed(){
+  var pin=prompt('Enter admin PIN to override:');
+  if(!pin)return;
+  if(hashPin(pin)===storedHash()){
+    adminUnlocked=true;
+    document.querySelectorAll('.admin-only').forEach(function(el){el.classList.add('visible');});
+    document.querySelectorAll('.admin-only-inline').forEach(function(el){el.classList.add('visible');});
+    document.getElementById('rsvp-closed-banner').style.display='none';
+    document.getElementById('rsvp-verify-screen').style.display='block';
+  } else {
+    alert('Incorrect PIN.');
+  }
+}
+
+
 
 function clearRsvpPhoneError(){
   document.getElementById('rsvp-phone-error').style.display='none';
@@ -1568,8 +1827,10 @@ function updateCutoffUI(){
   if(!cutoffEl)return;
   if(schedule.rsvpCutoff){
     const dt=new Date(schedule.rsvpCutoff);
-    cutoffEl.value=schedule.rsvpCutoff.slice(0,10);
-    cutoffTimeEl.value=schedule.rsvpCutoff.slice(11,16)||'23:59';
+    // Convert to local date/time for display
+    const localISO=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString();
+    cutoffEl.value=localISO.slice(0,10);
+    cutoffTimeEl.value=localISO.slice(11,16)||'23:59';
     const now=new Date();
     const dateStr=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
     const timeStr=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
@@ -1590,9 +1851,14 @@ async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
-  schedule.rsvpCutoff=d?d+'T'+t:null;
+  if(d){
+    const dt=new Date(d+'T'+t+':00');
+    schedule.rsvpCutoff=dt.toISOString();
+  } else {
+    schedule.rsvpCutoff=null;
+  }
   updateCutoffUI();
-  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
 }
 
 async function clearRsvpCutoff(){
@@ -1605,10 +1871,26 @@ async function clearRsvpCutoff(){
 
 function isRsvpClosed(){
   if(!schedule||!schedule.rsvpCutoff)return false;
-  return new Date()>new Date(schedule.rsvpCutoff);
+  var dt=new Date(schedule.rsvpCutoff);
+  return new Date()>dt;
 }
 
 /* ── RSVP phone verification ── */
+function adminOverrideClosed(){
+  var pin=prompt('Enter admin PIN to override:');
+  if(!pin)return;
+  if(hashPin(pin)===storedHash()){
+    adminUnlocked=true;
+    document.querySelectorAll('.admin-only').forEach(function(el){el.classList.add('visible');});
+    document.querySelectorAll('.admin-only-inline').forEach(function(el){el.classList.add('visible');});
+    document.getElementById('rsvp-closed-banner').style.display='none';
+    document.getElementById('rsvp-verify-screen').style.display='block';
+  } else {
+    alert('Incorrect PIN.');
+  }
+}
+
+
 function verifyRsvpPhone(){
   const raw=document.getElementById('rsvp-phone-input').value||'';
   const digits=digitsOnly(raw);
@@ -1617,13 +1899,11 @@ function verifyRsvpPhone(){
     alert('Sorry, registration for this session is closed.');
     return;
   }
-  console.log('Verifying phone:', digits, 'contacts loaded:', contacts.length);
   if(!digits){document.getElementById('rsvp-phone-error').style.display='block';return;}
   const match=contacts.find(function(c){
     const cd=digitsOnly(c.phone||'');
     return cd&&digits&&(cd.slice(-10)===digits.slice(-10));
   });
-  console.log('Match found:', match?match.name:'NONE');
   if(!match){
     document.getElementById('rsvp-phone-error').style.display='block';
     return;
@@ -1648,23 +1928,42 @@ function renderPairs(){
     const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
     if(!p1||!p2)return '';
     const opts=[1,2,3,4,5,6,7,8,9,10].map(function(n){return '<option value="'+n+'"'+(pair.rounds===n?' selected':'')+'>'+n+' round'+(n>1?'s':'')+'</option>';}).join('')+'<option value="99"'+(pair.rounds>=99?' selected':'')+'>All rounds</option>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);flex-wrap:wrap"><span style="font-size:13px;font-weight:600">'+p1.name+' + '+p2.name+'</span><span style="font-size:12px;color:var(--text2)">together for</span><select onchange="updatePairRounds('+i+',this.value)" style="height:28px;width:100px;font-size:12px">'+opts+'</select><button class="btn btn-xs btn-danger" onclick="removePair('+i+')" style="margin-left:auto">✕ Remove</button></div>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border);flex-wrap:wrap"><span style="font-size:13px;font-weight:600">'+p1.name+' + '+p2.name+'</span><span style="font-size:12px;color:var(--text2)">together for</span><span style="font-size:11px;color:var(--green-dk);margin-left:4px">('+(pair._played||0)+' of '+(pair.rounds>=99?'all':pair.rounds)+' done)</span><select onchange="updatePairRounds('+i+',this.value)" style="height:28px;width:100px;font-size:12px">'+opts+'</select><button class="btn btn-xs btn-danger" onclick="removePair('+i+')" style="margin-left:auto">✕ Remove</button></div>';
   }).join('');
   // Show warning if any pair conflicts with current mode
   if(pairs.length&&schedule){
     const m=schedule.mode||'auto';
-    const conflicts=pairs.filter(function(pair){
+    const fms=schedule.fixedMatches||[];
+    const fixedIds=new Set();
+    fms.forEach(function(fm){[fm.t1p1,fm.t1p2,fm.t2p1,fm.t2p2].forEach(function(id){fixedIds.add(id);});});
+
+    const modeConflicts=pairs.filter(function(pair){
       const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
       if(!p1||!p2)return false;
       if(m==='mixed'&&p1.gender===p2.gender)return true;
       if(m==='gender'&&p1.gender!==p2.gender)return true;
       return false;
     });
-    if(conflicts.length){
+    if(modeConflicts.length){
       const warn=document.createElement('div');
       warn.style.cssText='font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:6px 10px;margin-top:6px';
-      warn.textContent='⚠️ '+conflicts.length+' pair'+(conflicts.length>1?'s conflict':'  conflicts')+' with the current match type and will be skipped. Gender rules take priority.';
+      warn.textContent='⚠️ '+modeConflicts.length+' pair'+(modeConflicts.length>1?'s conflict':'  conflicts')+' with the current match type and will be skipped. Gender rules take priority.';
       list.appendChild(warn);
+    }
+
+    // Warn if any pair player is also in a fixed match
+    const pairFixedConflicts=pairs.filter(function(pair){
+      return fixedIds.has(pair.p1)||fixedIds.has(pair.p2);
+    });
+    if(pairFixedConflicts.length){
+      const warn2=document.createElement('div');
+      warn2.style.cssText='font-size:12px;color:var(--amber-tx);background:var(--amber-lt);border:1px solid #EF9F27;border-radius:var(--r-sm);padding:6px 10px;margin-top:6px';
+      const names=pairFixedConflicts.map(function(pair){
+        const p1=contacts.find(function(c){return c.id===pair.p1;}),p2=contacts.find(function(c){return c.id===pair.p2;});
+        return (p1?p1.name:'?')+' & '+(p2?p2.name:'?');
+      }).join(', ');
+      warn2.textContent='⚠️ '+names+' overlap with a fixed match. Fixed matches take priority — pairing may be skipped those rounds.';
+      list.appendChild(warn2);
     }
   }
 }
@@ -1679,15 +1978,36 @@ function addPair(){
   if(isNaN(i1)||!pl[i1])return;
   const i2=parseInt(prompt('Second player number ('+nameList+'):'));
   if(isNaN(i2)||!pl[i2]||i2===i1){alert('Invalid selection.');return;}
-  const r=parseInt(prompt('Rounds together (99 = all):','3'));
+  const r=parseInt(prompt('Rounds together (enter number, or 99 for all rounds):','99'));
   if(isNaN(r)||r<1)return;
+  // Validate: check if enough rounds are available for this pair
+  var existingPairs=schedule.pairs||[];
+  var p1RoundsUsed=(schedule.rounds||10);
+  var p2RoundsUsed=(schedule.rounds||10);
+  // Count how many rounds each player is already committed across existing pairs
+  var p1id=pl[i1].id,p2id=pl[i2].id;
+  existingPairs.forEach(function(ep){
+    if(ep.p1===p1id||ep.p2===p1id) p1RoundsUsed-=Math.min(ep.rounds>=99?(schedule.rounds||10):ep.rounds,(schedule.rounds||10));
+    if(ep.p1===p2id||ep.p2===p2id) p2RoundsUsed-=Math.min(ep.rounds>=99?(schedule.rounds||10):ep.rounds,(schedule.rounds||10));
+  });
+  var neededRounds=Math.min(r,99)>=99?(schedule.rounds||10):Math.min(r,99);
+  var availableRounds=Math.min(p1RoundsUsed,p2RoundsUsed);
+  if(neededRounds>availableRounds){
+    var p1name=pl[i1].name,p2name=pl[i2].name;
+    var reason=availableRounds<=0
+      ? p1RoundsUsed<=0?p1name+' has no free rounds left (already committed every round)':p2name+' has no free rounds left (already committed every round)'
+      : 'Only '+availableRounds+' round'+(availableRounds!==1?'s':'')+' available for this pair — other pairs already use '+p1name+' or '+p2name+' in the remaining rounds.';
+    if(!confirm('⚠️ Warning: '+reason+'\n\nAdd pair anyway with '+availableRounds+' rounds instead?')) return;
+    r=availableRounds;
+    if(r<1){alert('Cannot add pair — no rounds available.');return;}
+  }
   schedule.pairs.push({p1:pl[i1].id,p2:pl[i2].id,rounds:Math.min(r,99)});
   renderPairs();
   savePairs();
 }
 
 function removePair(i){if(!schedule||!schedule.pairs)return;schedule.pairs.splice(i,1);renderPairs();savePairs();}
-function updatePairRounds(i,val){if(!schedule||!schedule.pairs)return;schedule.pairs[i].rounds=+val;savePairs();}
+function updatePairRounds(i,val){if(!schedule||!schedule.pairs)return;schedule.pairs[i].rounds=+val;renderPairs();savePairs();}
 async function savePairs(){try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 
 async function init(){
@@ -1698,6 +2018,13 @@ async function init(){
       if(el){
         el.addEventListener('change',function(){renderContacts();});
         el.addEventListener('input',function(){renderContacts();});
+      }
+    });
+    ['rsvp-cutoff-date','rsvp-cutoff-time'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){
+        el.addEventListener('change',function(){saveRsvpCutoff();});
+        el.addEventListener('input',function(){saveRsvpCutoff();});
       }
     });
   }, 100);
