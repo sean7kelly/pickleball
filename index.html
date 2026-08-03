@@ -1452,8 +1452,33 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
     // 4. Sit-out: pick from non-pair, non-fixed players with most sit-outs
     var sitCount=Math.max(0,avail.length-totalCourts*4);
     var sitPool=[...avail].filter(p=>!pairPlayerIds.has(p.id))
-                          .sort((a,b)=>(sitCts[b.id]||0)-(sitCts[a.id]||0));
-    sitters=sitPool.slice(0,sitCount);
+                          .sort((a,b)=>(sitCts[a.id]||0)-(sitCts[b.id]||0)); // least sat-out first
+    // Pick sitters while maintaining M/F balance for court viability
+    sitters=[];
+    if(sitCount>0){
+      // Try to find sitters that keep remaining M/F fillable for totalCourts courts
+      var bestSitters=null;
+      // Try all gender combos for sitCount sitters
+      var poolM=sitPool.filter(p=>p.gender==='M');
+      var poolF=sitPool.filter(p=>p.gender==='F');
+      var totalM=avail.filter(p=>p.gender==='M'&&!pairPlayerIds.has(p.id)).length;
+      var totalF=avail.filter(p=>p.gender==='F'&&!pairPlayerIds.has(p.id)).length;
+      for(var sitM2=0;sitM2<=Math.min(sitCount,poolM.length);sitM2++){
+        var sitF2=sitCount-sitM2;
+        if(sitF2>poolF.length)continue;
+        var remM=totalM-sitM2,remF=totalF-sitF2;
+        // Check if remM/remF can fill totalCourts courts
+        var canFill=false;
+        outer3:for(var m3=0;m3<=totalCourts;m3++)for(var f3=0;f3<=totalCourts-m3;f3++){
+          var x3=totalCourts-m3-f3;
+          if(m3*4+x3*2>remM||f3*4+x3*2>remF)continue;
+          if((m3*4+x3*2)+(f3*4+x3*2)!==totalCourts*4)continue;
+          canFill=true;break outer3;
+        }
+        if(canFill){bestSitters=poolM.slice(0,sitM2).concat(poolF.slice(0,sitF2));break;}
+      }
+      sitters=bestSitters||sitPool.slice(0,sitCount);
+    }
     sitters.forEach(p=>sitCts[p.id]=(sitCts[p.id]||0)+1);
     avail=avail.filter(p=>!sitters.find(s=>s.id===p.id));
 
