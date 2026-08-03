@@ -869,7 +869,7 @@ function renderWaitlist(){
   el.innerHTML=html;
 }
 
-function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
