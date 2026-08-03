@@ -629,7 +629,17 @@ function showTab(t,btn){
   document.getElementById('tab-'+t).classList.add('active');
   if(btn)btn.classList.add('active');
   if(t==='schedule'){renderScheduleList();if(adminUnlocked)renderToggles();if(schedule&&schedule.generated)renderSchedule();}
-  if(t==='contacts')renderContacts();
+  if(t==='contacts'){
+    // Auto-select most recent upcoming schedule if none selected
+    if(!schedule&&schedules.length){
+      var upcoming=schedules.filter(function(s){
+        if(!s.rawDate)return true;
+        return new Date(s.rawDate)>=new Date(new Date().toDateString());
+      });
+      schedule=upcoming.length?upcoming[0]:schedules[0];
+    }
+    renderContacts();
+  }
   if(t==='stats')renderStats();
 }
 let adminUnlocked=false,pinBuffer='';
@@ -801,7 +811,11 @@ function renderWaitlist(){
   if(!schedule){el.style.display='none';return;}
   var rsvps=schedule.rsvps||{};
   var hasAnyYes=Object.values(rsvps).some(function(v){return v==='yes';});
-  if(!hasAnyYes){el.style.display='none';return;}
+  if(!hasAnyYes){
+    el.style.display='block';
+    el.innerHTML='<div class="card" style="margin-bottom:12px"><div style="font-size:13px;color:var(--text2)">No RSVPs yet for '+schedule.name+'</div></div>';
+    return;
+  }
   var wl=calcWaitlist(schedule.mode);
   el.style.display='block';
   var waitCount=wl.waitlist.length;
