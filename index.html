@@ -831,7 +831,7 @@ function renderWaitlist(){
   if(!el)return;
   if(!schedule){el.style.display='none';return;}
   var rsvps=schedule.rsvps||{};
-  var hasAnyYes=Object.values(rsvps).some(function(v){return v==='yes';});
+  var hasAnyYes=Object.values(rsvps).some(function(v){return getRsvpStatus(v)==='yes';});
   if(!hasAnyYes){
     el.style.display='block';
     el.innerHTML='<div class="card" style="margin-bottom:12px"><div style="font-size:13px;color:var(--text2)">No RSVPs yet for '+schedule.name+'</div></div>';
