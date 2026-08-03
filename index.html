@@ -842,7 +842,7 @@ function renderWaitlist(){
   var hasAnyYes=Object.values(rsvps).some(function(v){return getRsvpStatus(v)==='yes';});
   // Always build the override button for admin regardless of RSVP status
   var overrideHtml='';
-  if(adminUnlocked){
+  if(true||adminUnlocked){  // DEBUG: always show
     var overrideActive=schedule.waitlistOverride;
     overrideHtml='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">'
       +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">🔧 Waitlist override</div>'
