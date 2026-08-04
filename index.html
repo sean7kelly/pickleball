@@ -1628,6 +1628,7 @@ function genScheduleSilent(activePlayers){
   var pairWarnings=buildResult.warnings||[];
   schedule.generated=true;
   if(!schedule.date)schedule.date=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  console.log('genScheduleSilent: rounds='+schedule.matches.length+' sitters[0]='+JSON.stringify((schedule.matches[0]&&schedule.matches[0].sitters||[]).map(p=>p.name||p)));
   renderSchedule();
   renderPairs();
 }
