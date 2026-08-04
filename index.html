@@ -1622,7 +1622,7 @@ async function genSchedule(){
   }
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
-async function genScheduleSilent(activePlayers){
+async async function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
   var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
