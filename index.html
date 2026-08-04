@@ -786,6 +786,8 @@ function getRsvpTime(val){
 function toggleWaitlistOverride(){
   if(!schedule)return;
   schedule.waitlistOverride=!schedule.waitlistOverride;
+  // Also store in localStorage as backup in case DB column doesn't exist
+  try{localStorage.setItem('wl_override_'+schedule.id, schedule.waitlistOverride?'1':'');}catch(e){}
   schedule.matches=[];  // force full regeneration
   renderWaitlist();
   autoSyncRsvpsToSchedule();
@@ -1288,6 +1290,8 @@ function backToList(){schedule=null;document.getElementById('sched-out').innerHT
 function openSchedule(id){
   schedule=schedules.find(s=>s.id===id)||null;
   if(!schedule)return;
+  // Restore override from localStorage if DB column not available
+  try{var ls=localStorage.getItem('wl_override_'+id);if(ls==='1')schedule.waitlistOverride=true;}catch(e){}
   // Sync selected players from RSVPs every time schedule is opened
   autoSyncRsvpsToSchedule();
   // Show controls only if admin, otherwise just show the schedule output
