@@ -582,13 +582,13 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false};}
 function slimSchedule(s){
   if(!s)return null;
   return {
     id:s.id, name:s.name||'Sunday Schedule', date:s.date||'', raw_date:s.rawDate||'',
     rounds:s.rounds||10, mode:s.mode||'auto',
-    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null,
+    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null, waitlist_override:s.waitlistOverride||false,
     generated:s.generated||false, selected:s.selected||[], rsvps:s.rsvps||{},
     matches:(s.matches||[]).map(function(round){
       return {
@@ -786,8 +786,11 @@ function getRsvpTime(val){
 function toggleWaitlistOverride(){
   if(!schedule)return;
   schedule.waitlistOverride=!schedule.waitlistOverride;
+  schedule.matches=[];  // force full regeneration
   renderWaitlist();
   autoSyncRsvpsToSchedule();
+  // Persist override state
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 
 function calcWaitlist(mode){
