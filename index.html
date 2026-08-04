@@ -930,7 +930,7 @@ function renderWaitlist(){
   el.innerHTML=html;
 }
 
-function renderContacts(){_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
@@ -1622,7 +1622,7 @@ async function genSchedule(){
   }
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
-function genScheduleSilent(activePlayers){
+async function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
   var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
