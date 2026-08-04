@@ -1293,6 +1293,7 @@ async function openSchedule(id){
   // Restore override from localStorage if DB column not available
   try{var ls=localStorage.getItem('wl_override_'+id);if(ls==='1')schedule.waitlistOverride=true;}catch(e){}
   // Sync selected players from RSVPs every time schedule is opened
+  document.getElementById('sched-out').innerHTML='<div style="padding:10px;color:red">DEBUG: override='+schedule.waitlistOverride+' id='+id+'</div>';
   await autoSyncRsvpsToSchedule();
   // Show controls only if admin, otherwise just show the schedule output
   renderScheduleList();
