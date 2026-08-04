@@ -1154,7 +1154,7 @@ function selectAllInvite(){contacts.forEach(c=>c.invited=true);renderContacts();
 function selectNoneInvite(){contacts.forEach(c=>c.invited=false);renderContacts();batchSaveContacts();}
 function selectInOnly(){const m=(schedule&&schedule.rsvps)?schedule.rsvps:{};contacts.forEach(c=>c.invited=m[String(c.id)]==='yes');renderContacts();batchSaveContacts();}
 async function batchSaveContacts(){try{setSyncing();await Promise.all(contacts.map(c=>api('contacts/upsert',contactToDb(c))));setSynced();}catch(e){setSyncErr();}}
-function autoSyncRsvpsToSchedule(){
+async function autoSyncRsvpsToSchedule(){
   if(!schedule)return;
   var rawRsvps2=schedule.rsvps||{};
   const rsvpMap={};
@@ -1180,7 +1180,7 @@ function autoSyncRsvpsToSchedule(){
     activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
   }
   schedule.selected=activePlayers.map(p=>p.id);
-  if(activePlayers.length>=4)genScheduleSilent(activePlayers);
+  if(activePlayers.length>=4)await genScheduleSilent(activePlayers);
   else{schedule.matches=[];schedule.generated=false;renderSchedule();}
 }
 function setRsvpQuickSunday(){const t=new Date();const diff=t.getDay()===0?7:7-t.getDay();const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Sunday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
@@ -1287,13 +1287,13 @@ function renderScheduleList(){
     </div>`;}).join('');
 }
 function backToList(){schedule=null;document.getElementById('sched-out').innerHTML='';renderScheduleList();renderToggles();}
-function openSchedule(id){
+async function openSchedule(id){
   schedule=schedules.find(s=>s.id===id)||null;
   if(!schedule)return;
   // Restore override from localStorage if DB column not available
   try{var ls=localStorage.getItem('wl_override_'+id);if(ls==='1')schedule.waitlistOverride=true;}catch(e){}
   // Sync selected players from RSVPs every time schedule is opened
-  autoSyncRsvpsToSchedule();
+  await autoSyncRsvpsToSchedule();
   // Show controls only if admin, otherwise just show the schedule output
   renderScheduleList();
   if(adminUnlocked){renderToggles();}
@@ -1649,7 +1649,7 @@ function renderSchedule(){
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
   if(!schedule||!schedule.generated||!schedule.matches.length){out.innerHTML='<div class="empty"><div class="ei">📅</div>'+(!schedule?'Select a schedule to view it.':'Select players and Generate — or mark people In from Contacts.')+'</div>';return;}
   const s=hydrateSchedule(schedule);
-  out.innerHTML=s.matches.map(round=>`<div class="round-block"><div class="round-lbl">Round ${round.round}</div>${round.matches.map((m,mi)=>`<div class="mrow ${m.recorded?'recorded':''}" id="mr-${m.id}"><div class="mtop"><span class="clbl">Court ${mi+1}</span><span class="badge ${typeBadge[m.type]}">${typeLabel[m.type]}</span></div><div class="tgrid-m"><div>${m.team1.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div><div class="vslbl">vs</div><div class="tr">${m.team2.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div></div><div class="score-row no-print"><input type="number" class="sin" id="s1-${m.id}" value="${m.score1}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',this.value,document.getElementById('s2-${m.id}').value)"/><span class="ssep">–</span><input type="number" class="sin" id="s2-${m.id}" value="${m.score2}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',document.getElementById('s1-${m.id}').value,this.value)"/><button class="btn btn-sm ${m.recorded?'btn-teal':'btn-primary'}" onclick="recordResult('${m.id}')">${m.recorded?'✓ Saved':'✔ Record'}</button></div></div>`).join('')}${`<div class="sitout" style="color:red">DEBUG sitters: ${JSON.stringify((round.sitters||[]).map(p=>p&&p.name?p.name:p))}</div>`+(round.sitters?.length?`<div class="sitout">⏸ Sitting out: ${round.sitters.map(p=>p&&p.name?p.name:(contacts.find(c=>c.id===p||c.id===+p)||{name:'?'}).name).join(', ')}</div>`:'')}</div>`).join('');
+  out.innerHTML=s.matches.map(round=>`<div class="round-block"><div class="round-lbl">Round ${round.round}</div>${round.matches.map((m,mi)=>`<div class="mrow ${m.recorded?'recorded':''}" id="mr-${m.id}"><div class="mtop"><span class="clbl">Court ${mi+1}</span><span class="badge ${typeBadge[m.type]}">${typeLabel[m.type]}</span></div><div class="tgrid-m"><div>${m.team1.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div><div class="vslbl">vs</div><div class="tr">${m.team2.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div></div><div class="score-row no-print"><input type="number" class="sin" id="s1-${m.id}" value="${m.score1}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',this.value,document.getElementById('s2-${m.id}').value)"/><span class="ssep">–</span><input type="number" class="sin" id="s2-${m.id}" value="${m.score2}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',document.getElementById('s1-${m.id}').value,this.value)"/><button class="btn btn-sm ${m.recorded?'btn-teal':'btn-primary'}" onclick="recordResult('${m.id}')">${m.recorded?'✓ Saved':'✔ Record'}</button></div></div>`).join('')}${round.sitters?.length?`<div class="sitout">⏸ Sitting out: ${round.sitters.map(p=>p&&p.name?p.name:(contacts.find(c=>c.id===p||c.id===+p)||{name:'?'}).name).join(', ')}</div>`:''}</div>`).join('');
 }
 async function saveScore(mid,s1,s2){for(const rnd of(schedule?schedule.matches:[])){const m=rnd.matches.find(m=>m.id===mid);if(m){m.score1=s1;m.score2=s2;}}try{if(schedule)await api('schedules/save',slimSchedule(schedule));}catch(e){}}
 async function recordResult(mid){
