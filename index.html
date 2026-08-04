@@ -1293,12 +1293,16 @@ async function openSchedule(id){
   // Restore override from localStorage if DB column not available
   try{var ls=localStorage.getItem('wl_override_'+id);if(ls==='1')schedule.waitlistOverride=true;}catch(e){}
   // Sync selected players from RSVPs every time schedule is opened
-  document.getElementById('sched-out').innerHTML='<div style="padding:10px;color:red">DEBUG: override='+schedule.waitlistOverride+' id='+id+'</div>';
   await autoSyncRsvpsToSchedule();
   // Show controls only if admin, otherwise just show the schedule output
   renderScheduleList();
   if(adminUnlocked){renderToggles();}
   renderSchedule();
+  var dbg=document.createElement('div');
+  dbg.style.cssText='background:red;color:white;padding:12px;font-size:14px;position:fixed;top:60px;left:0;right:0;z-index:9999;';
+  dbg.textContent='override='+schedule.waitlistOverride+' selected='+schedule.selected.length+' matches='+schedule.matches.length;
+  dbg.onclick=function(){this.remove();};
+  document.body.appendChild(dbg);
 }
 async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
 async function deleteSchedule(){if(!schedule)return;if(!confirm(`Delete "${schedule.name}"?`))return;const id=schedule.id;schedules=schedules.filter(s=>s.id!==id);schedule=null;renderScheduleList();renderToggles();document.getElementById('sched-out').innerHTML='';try{setSyncing();await api('schedules/delete',{id});setSynced();}catch(e){setSyncErr();}}
