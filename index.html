@@ -1120,17 +1120,14 @@ function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNum
     </div>`;
   }).join('');
 }
-function prioritizeRsvp(id){
+async function prioritizeRsvp(id){
   if(!schedule)return;
   if(!schedule.rsvps)schedule.rsvps={};
-  var key=String(id);
-  // Force 'yes' with earliest timestamp
-  schedule.rsvps[key]={s:'yes',t:1};
-  // Save and re-render WITHOUT calling autoSync (which might overwrite)
-  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){
-    setSynced();
-    autoSyncRsvpsToSchedule();
-  }).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+  schedule.rsvps[String(id)]={s:'yes',t:1};
+  schedule.rsvps[id]={s:'yes',t:1};
+  try{await api('schedules/save',slimSchedule(schedule));}catch(e){}
+  await autoSyncRsvpsToSchedule();
+  renderContacts();
 }
 
 async function setRsvp(id,val){
