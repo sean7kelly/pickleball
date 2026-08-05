@@ -806,11 +806,14 @@ function calcWaitlist(mode){
   }).sort(function(a,b){
     var ta=getRsvpTime(rsvps[a.id]||rsvps[''+a.id]);
     var tb=getRsvpTime(rsvps[b.id]||rsvps[''+b.id]);
-    // t=0 means no timestamp - treat as late (current time) so real early timestamps win
+    // No timestamp = RSVPed before feature existed = highest priority
+    // Tiebreak no-timestamp players by contact ID (lower = in system longer)
+    // Real timestamps sort after no-timestamp players, earliest first
     var now=Date.now();
-    var ra=ta===0?now:ta;
-    var rb=tb===0?now:tb;
-    return ra-rb; // earlier timestamp = higher priority
+    if(ta===0&&tb===0)return a.id-b.id;
+    if(ta===0)return -1; // no-ts beats real timestamp
+    if(tb===0)return 1;  // no-ts beats real timestamp
+    return ta-tb; // both have real timestamps, earlier wins
   });
   var nM=ins.filter(function(c){return c.gender==='M';}).length;
   var nF=ins.filter(function(c){return c.gender==='F';}).length;
