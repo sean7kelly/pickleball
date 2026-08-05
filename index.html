@@ -1123,14 +1123,11 @@ function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNum
 function prioritizeRsvp(id){
   if(!schedule||!schedule.rsvps)return;
   var key=String(id);
-  var existing=schedule.rsvps[key];
-  if(!existing)return;
-  // Set timestamp to 1 (earliest possible) so they're first in queue
+  // Force 'yes' with earliest timestamp regardless of current state
   schedule.rsvps[key]={s:'yes',t:1};
   renderContacts();
   autoSyncRsvpsToSchedule();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
-  alert('Moved to front of RSVP queue!');
 }
 
 async function setRsvp(id,val){
