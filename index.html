@@ -1130,8 +1130,8 @@ async function editRsvpTime(id){
   var currentStr=currentT?new Date(currentT).toISOString().slice(0,16):'';
   var input=prompt('Set RSVP date/time for this player:\n(format: YYYY-MM-DDTHH:MM\nor leave blank for earliest priority)',currentStr);
   if(input===null)return; // cancelled
-  var t=input.trim()===''?1:new Date(input).getTime();
-  if(isNaN(t)||t<=0)t=1;
+  var t=input.trim()===''?0:new Date(input).getTime();
+  if(isNaN(t)||t<0)t=0;
   schedule.rsvps[key]={s:'yes',t:t};
   try{await api('schedules/save',slimSchedule(schedule));}catch(e){}
   await autoSyncRsvpsToSchedule();
