@@ -1115,16 +1115,22 @@ function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNum
       </div>`:''}
       <div style="display:flex;gap:5px">
         ${(adminUnlocked||rsvpLandingMode)?`<button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
-        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>${adminUnlocked&&rsvp==='yes'?`<button class="btn btn-xs" onclick="event.stopPropagation();prioritizeRsvp(${c.id})" title="Move to front of queue" style="padding:4px 6px;font-size:11px">⬆ Priority</button>`:''}`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
+        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>${adminUnlocked&&rsvp==='yes'?`<div style="font-size:10px;color:var(--text2);margin-top:3px;cursor:pointer" onclick="event.stopPropagation();editRsvpTime(${c.id})">🕐 RSVP: ${getRsvpTime(schedule.rsvps[c.id]||schedule.rsvps[String(c.id)])?new Date(getRsvpTime(schedule.rsvps[c.id]||schedule.rsvps[String(c.id)])).toLocaleString():'No timestamp (tap to set)'}</div>`:''}`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
       </div>
     </div>`;
   }).join('');
 }
-async function prioritizeRsvp(id){
-  if(!schedule)return;
-  if(!schedule.rsvps)schedule.rsvps={};
-  schedule.rsvps[String(id)]={s:'yes',t:1};
-  schedule.rsvps[id]={s:'yes',t:1};
+async function editRsvpTime(id){
+  if(!schedule||!schedule.rsvps)return;
+  var key=String(id);
+  var existing=schedule.rsvps[key]||schedule.rsvps[id];
+  var currentT=getRsvpTime(existing);
+  var currentStr=currentT?new Date(currentT).toISOString().slice(0,16):'';
+  var input=prompt('Set RSVP date/time for this player:\n(format: YYYY-MM-DDTHH:MM\nor leave blank for earliest priority)',currentStr);
+  if(input===null)return; // cancelled
+  var t=input.trim()===''?1:new Date(input).getTime();
+  if(isNaN(t)||t<=0)t=1;
+  schedule.rsvps[key]={s:'yes',t:t};
   try{await api('schedules/save',slimSchedule(schedule));}catch(e){}
   await autoSyncRsvpsToSchedule();
   renderContacts();
