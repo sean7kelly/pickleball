@@ -946,7 +946,9 @@ function renderWaitlist(){
 function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
-  const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
+  const rawRsvps=(schedule&&schedule.rsvps)||{};
+  var rsvpMap={};
+  Object.keys(rawRsvps).forEach(function(k){rsvpMap[k]=getRsvpStatus(rawRsvps[k]);});
   const pl=players();
 
   // In RSVP landing mode: clean view for RSVP respondents
@@ -1336,7 +1338,9 @@ async function setMode(m){if(!schedule)return;schedule.mode=m;updateModeBtns();t
 function updateModeBtns(){const m=schedule?(schedule.mode||'auto'):'auto';document.querySelectorAll('.mode-btn').forEach(btn=>btn.classList.toggle('active',btn.getAttribute('onclick').includes("'"+m+"'")));}
 function renderToggles(){
   // Show contacts who RSVPed Yes (or all contacts if no RSVPs set)
-  const rsvpMap=(schedule&&schedule.rsvps)?schedule.rsvps:{};
+  const rawRsvps=(schedule&&schedule.rsvps)||{};
+  var rsvpMap={};
+  Object.keys(rawRsvps).forEach(function(k){rsvpMap[k]=getRsvpStatus(rawRsvps[k]);});
   const hasRsvps=Object.keys(rsvpMap).length>0;
   const pl=contacts.filter(function(p){
     if(!hasRsvps) return true;
