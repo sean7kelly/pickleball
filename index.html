@@ -881,8 +881,6 @@ function renderWaitlist(){
     var d=t?new Date(t).toLocaleTimeString():'no-ts';
     return c.name.split(' ')[0]+'('+d+')';
   }).join(', ');
-  el.innerHTML='<div style="font-size:11px;color:red;padding:8px;background:#fff">F order: '+fDebug+'</div>';
-  return;
   el.style.display='block';
   var waitCount=wl.waitlist.length;
   var waitM=wl.waitlist.filter(function(c){return c.gender==='M';}).length;
@@ -957,6 +955,7 @@ function renderWaitlist(){
 
   }
   html+=overrideHtml;
+  html+='<div style="font-size:10px;color:red;margin-top:6px">F order: '+fDebug+'</div>';
   html+='</div>';
   el.innerHTML=html;
 }
