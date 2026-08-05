@@ -1111,11 +1111,24 @@ function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNum
       </div>`:''}
       <div style="display:flex;gap:5px">
         ${(adminUnlocked||rsvpLandingMode)?`<button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
-        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
+        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>${adminUnlocked&&rsvp==='yes'?`<button class="btn btn-xs" onclick="prioritizeRsvp(${c.id})" title="Move to front of queue" style="padding:4px 6px;font-size:11px">⬆ Priority</button>`:''}`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
       </div>
     </div>`;
   }).join('');
 }
+function prioritizeRsvp(id){
+  if(!schedule||!schedule.rsvps)return;
+  var key=String(id);
+  var existing=schedule.rsvps[key];
+  if(!existing)return;
+  // Set timestamp to 1 (earliest possible) so they're first in queue
+  schedule.rsvps[key]={s:'yes',t:1};
+  renderContacts();
+  autoSyncRsvpsToSchedule();
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+  alert('Moved to front of RSVP queue!');
+}
+
 async function setRsvp(id,val){
   // Block if registration closed
   if(isRsvpClosed()&&!adminUnlocked){
