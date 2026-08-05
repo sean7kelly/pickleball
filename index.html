@@ -866,15 +866,23 @@ function renderWaitlist(){
     return;
   }
   var wl=calcWaitlist(schedule.mode);
-  // DEBUG: show F timestamps
+  // DEBUG: show F timestamps on screen
   var rsvpsDbg=schedule.rsvps||{};
-  var fPlayers=contacts.filter(function(c){
+  var fDebug=contacts.filter(function(c){
     return c.gender==='F'&&(getRsvpStatus(rsvpsDbg[c.id]||rsvpsDbg[''+c.id])==='yes');
+  }).sort(function(a,b){
+    var ta=getRsvpTime(rsvpsDbg[a.id]||rsvpsDbg[''+a.id]);
+    var tb=getRsvpTime(rsvpsDbg[b.id]||rsvpsDbg[''+b.id]);
+    if(ta===0&&tb===0)return a.id-b.id;
+    if(ta===0)return -1;if(tb===0)return 1;
+    return ta-tb;
   }).map(function(c){
     var t=getRsvpTime(rsvpsDbg[c.id]||rsvpsDbg[''+c.id]);
-    return c.name.split(' ')[0]+':'+t;
-  });
-  console.log('F RSVP times:',fPlayers.join(', '));
+    var d=t?new Date(t).toLocaleTimeString():'no-ts';
+    return c.name.split(' ')[0]+'('+d+')';
+  }).join(', ');
+  el.innerHTML='<div style="font-size:11px;color:red;padding:8px;background:#fff">F order: '+fDebug+'</div>';
+  return;
   el.style.display='block';
   var waitCount=wl.waitlist.length;
   var waitM=wl.waitlist.filter(function(c){return c.gender==='M';}).length;
