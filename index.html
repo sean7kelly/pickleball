@@ -806,12 +806,11 @@ function calcWaitlist(mode){
   }).sort(function(a,b){
     var ta=getRsvpTime(rsvps[a.id]||rsvps[''+a.id]);
     var tb=getRsvpTime(rsvps[b.id]||rsvps[''+b.id]);
-    // No timestamp (0) = RSVPed before timestamps existed = treat as earliest
-    // Use contact ID as tiebreaker (lower ID = added to system earlier = higher priority)
-    if(ta===0&&tb===0)return a.id-b.id;
-    if(ta===0)return -1; // a goes first
-    if(tb===0)return 1;  // b goes first
-    return ta-tb; // both have timestamps, earlier wins
+    // t=0 means no timestamp - treat as late (current time) so real early timestamps win
+    var now=Date.now();
+    var ra=ta===0?now:ta;
+    var rb=tb===0?now:tb;
+    return ra-rb; // earlier timestamp = higher priority
   });
   var nM=ins.filter(function(c){return c.gender==='M';}).length;
   var nF=ins.filter(function(c){return c.gender==='F';}).length;
@@ -866,21 +865,7 @@ function renderWaitlist(){
     return;
   }
   var wl=calcWaitlist(schedule.mode);
-  // DEBUG: show F timestamps on screen
-  var rsvpsDbg=schedule.rsvps||{};
-  var fDebug=contacts.filter(function(c){
-    return c.gender==='F'&&(getRsvpStatus(rsvpsDbg[c.id]||rsvpsDbg[''+c.id])==='yes');
-  }).sort(function(a,b){
-    var ta=getRsvpTime(rsvpsDbg[a.id]||rsvpsDbg[''+a.id]);
-    var tb=getRsvpTime(rsvpsDbg[b.id]||rsvpsDbg[''+b.id]);
-    if(ta===0&&tb===0)return a.id-b.id;
-    if(ta===0)return -1;if(tb===0)return 1;
-    return ta-tb;
-  }).map(function(c){
-    var t=getRsvpTime(rsvpsDbg[c.id]||rsvpsDbg[''+c.id]);
-    var d=t?new Date(t).toLocaleTimeString():'no-ts';
-    return c.name.split(' ')[0]+'('+d+')';
-  }).join(', ');
+
   el.style.display='block';
   var waitCount=wl.waitlist.length;
   var waitM=wl.waitlist.filter(function(c){return c.gender==='M';}).length;
@@ -955,7 +940,6 @@ function renderWaitlist(){
 
   }
   html+=overrideHtml;
-  html+='<div style="font-size:10px;color:red;margin-top:6px">F order: '+fDebug+'</div>';
   html+='</div>';
   el.innerHTML=html;
 }
