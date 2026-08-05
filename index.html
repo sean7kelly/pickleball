@@ -901,27 +901,34 @@ function renderWaitlist(){
       var badge=c.gender==='M'?'<span style="background:#E8F4FD;color:#1565C0;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">M</span>':'<span style="background:#FCE4EC;color:#C62828;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px">F</span>';
       html+='<div style="font-size:12px;padding:3px 0">'+c.name+badge+'</div>';
     });
-    // What's needed to promote - find which gender addition clears waitlist
+    // What's needed to promote - find all minimum combos
     var neededMsg='';
     var targetCourts=wl.courts+1;
-    promoteSearch:for(var addM=0;addM<=6;addM++){for(var addF=0;addF<=6;addF++){
+    var minAdd=99,minCombos=[];
+    for(var addM=0;addM<=6;addM++){for(var addF=0;addF<=6;addF++){
       if(addM===0&&addF===0)continue;
+      var total2=addM+addF;
+      if(total2>minAdd+1)continue;
       var tM=wl.nM+addM,tF=wl.nF+addF;
       if(Math.floor((tM+tF)/4)<targetCourts)continue;
-      var fits=false;
-      fitSearch:for(var m2=0;m2<=targetCourts;m2++){for(var f2=0;f2<=targetCourts-m2;f2++){
+      var fits2=false;
+      fitSearch2:for(var m2=0;m2<=targetCourts;m2++){for(var f2=0;f2<=targetCourts-m2;f2++){
         for(var x2=0;x2<=targetCourts-m2-f2;x2++){
           if(m2+f2+x2!==targetCourts)continue;
           if(m2*4+x2*2>tM||f2*4+x2*2>tF)continue;
           if((m2*4+x2*2)+(f2*4+x2*2)!==targetCourts*4)continue;
-          fits=true;break fitSearch;
+          fits2=true;break fitSearch2;
         }
       }}
-      if(fits){
-        neededMsg=(addM>0?addM+'M':'')+(addM>0&&addF>0?' + ':'')+(addF>0?addF+'F':'')+' more';
-        break promoteSearch;
+      if(fits2){
+        if(total2<minAdd){minAdd=total2;minCombos=[];}
+        if(total2===minAdd){
+          var lbl=(addM>0?addM+'M':'')+(addM>0&&addF>0?'+':'')+( addF>0?addF+'F':'');
+          minCombos.push(lbl);
+        }
       }
     }}
+    if(minCombos.length)neededMsg=minCombos.join(' or ')+' more';
     if(neededMsg){
       html+='<div style="font-size:12px;color:var(--text2);margin-top:8px">To add another court: need '+neededMsg+'</div>';
     }
