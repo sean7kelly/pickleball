@@ -866,6 +866,15 @@ function renderWaitlist(){
     return;
   }
   var wl=calcWaitlist(schedule.mode);
+  // DEBUG: show F timestamps
+  var rsvpsDbg=schedule.rsvps||{};
+  var fPlayers=contacts.filter(function(c){
+    return c.gender==='F'&&(getRsvpStatus(rsvpsDbg[c.id]||rsvpsDbg[''+c.id])==='yes');
+  }).map(function(c){
+    var t=getRsvpTime(rsvpsDbg[c.id]||rsvpsDbg[''+c.id]);
+    return c.name.split(' ')[0]+':'+t;
+  });
+  console.log('F RSVP times:',fPlayers.join(', '));
   el.style.display='block';
   var waitCount=wl.waitlist.length;
   var waitM=wl.waitlist.filter(function(c){return c.gender==='M';}).length;
