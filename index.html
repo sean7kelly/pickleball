@@ -1176,7 +1176,13 @@ async function setRsvp(id,val){
   const c=contacts.find(x=>x.id===id);if(!c)return;
   if(!schedule){alert('Pick a date first to track RSVPs.');return;}
   if(!schedule.rsvps)schedule.rsvps={};
-  const key=String(id);schedule.rsvps[key]=schedule.rsvps[key]===val?null:val;
+  const key=String(id);
+  var existingStatus=getRsvpStatus(schedule.rsvps[key]);
+  if(existingStatus===val){
+    schedule.rsvps[key]=null; // toggle off
+  } else {
+    schedule.rsvps[key]={s:val,t:Date.now()}; // save with timestamp
+  }
   renderContacts();autoSyncRsvpsToSchedule();
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
