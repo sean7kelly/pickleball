@@ -806,7 +806,11 @@ function calcWaitlist(mode){
   }).sort(function(a,b){
     var ta=getRsvpTime(rsvps[a.id]||rsvps[''+a.id]);
     var tb=getRsvpTime(rsvps[b.id]||rsvps[''+b.id]);
-    return ta-tb; // earliest first
+    // No timestamp (0) = RSVPed before timestamps existed = treat as earliest
+    if(ta===0&&tb===0)return 0;
+    if(ta===0)return -1; // a goes first
+    if(tb===0)return 1;  // b goes first
+    return ta-tb; // both have timestamps, earlier wins
   });
   var nM=ins.filter(function(c){return c.gender==='M';}).length;
   var nF=ins.filter(function(c){return c.gender==='F';}).length;
