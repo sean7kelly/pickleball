@@ -1115,19 +1115,22 @@ function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNum
       </div>`:''}
       <div style="display:flex;gap:5px">
         ${(adminUnlocked||rsvpLandingMode)?`<button class="btn btn-sm ${rsvp==='yes'?'btn-primary':''}" onclick="setRsvp(${c.id},'yes')" style="flex:1">✓ In</button>
-        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>${adminUnlocked&&rsvp==='yes'?`<button class="btn btn-xs" onclick="prioritizeRsvp(${c.id})" title="Move to front of queue" style="padding:4px 6px;font-size:11px">⬆ Priority</button>`:''}`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
+        <button class="btn btn-sm ${rsvp==='no'?'btn-danger':''}" onclick="setRsvp(${c.id},'no')" style="flex:1">✕ Out</button>${adminUnlocked&&rsvp==='yes'?`<button class="btn btn-xs" onclick="event.stopPropagation();prioritizeRsvp(${c.id})" title="Move to front of queue" style="padding:4px 6px;font-size:11px">⬆ Priority</button>`:''}`:`<div style="font-size:12px;color:var(--text2);padding:4px 0">${rsvp==='yes'?'✓ In':rsvp==='no'?'✕ Out':'No response'}</div>`}
       </div>
     </div>`;
   }).join('');
 }
 function prioritizeRsvp(id){
-  if(!schedule||!schedule.rsvps)return;
+  if(!schedule)return;
+  if(!schedule.rsvps)schedule.rsvps={};
   var key=String(id);
-  // Force 'yes' with earliest timestamp regardless of current state
+  // Force 'yes' with earliest timestamp
   schedule.rsvps[key]={s:'yes',t:1};
-  renderContacts();
-  autoSyncRsvpsToSchedule();
-  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+  // Save and re-render WITHOUT calling autoSync (which might overwrite)
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){
+    setSynced();
+    autoSyncRsvpsToSchedule();
+  }).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 
 async function setRsvp(id,val){
