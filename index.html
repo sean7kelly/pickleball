@@ -903,24 +903,24 @@ function renderWaitlist(){
     });
     // What's needed to promote - find which gender addition clears waitlist
     var neededMsg='';
-    for(var addM=0;addM<=4;addM++){for(var addF=0;addF<=4;addF++){
+    var targetCourts=wl.courts+1;
+    promoteSearch:for(var addM=0;addM<=6;addM++){for(var addF=0;addF<=6;addF++){
       if(addM===0&&addF===0)continue;
-      var np=null,nc=0;
-      var testM=wl.nM+addM,testF=wl.nF+addF;
-      outer2:for(var tc=(testM+testF)>>2;tc>wl.courts;tc--){
-        for(var m2=0;m2<=tc;m2++){for(var f2=0;f2<=tc-m2;f2++){
-          for(var x2=0;x2<=tc-m2-f2;x2++){
-            if(m2*4+x2*2>testM||f2*4+x2*2>testF)continue;
-            if((m2*4+x2*2)+(f2*4+x2*2)!==tc*4)continue;
-            np=true;nc=tc;break outer2;
-          }
-        }}
-      }
-      if(np&&nc>wl.courts){
+      var tM=wl.nM+addM,tF=wl.nF+addF;
+      if(Math.floor((tM+tF)/4)<targetCourts)continue;
+      var fits=false;
+      fitSearch:for(var m2=0;m2<=targetCourts;m2++){for(var f2=0;f2<=targetCourts-m2;f2++){
+        for(var x2=0;x2<=targetCourts-m2-f2;x2++){
+          if(m2+f2+x2!==targetCourts)continue;
+          if(m2*4+x2*2>tM||f2*4+x2*2>tF)continue;
+          if((m2*4+x2*2)+(f2*4+x2*2)!==targetCourts*4)continue;
+          fits=true;break fitSearch;
+        }
+      }}
+      if(fits){
         neededMsg=(addM>0?addM+'M':'')+(addM>0&&addF>0?' + ':'')+(addF>0?addF+'F':'')+' more';
-        break;
+        break promoteSearch;
       }
-      if(neededMsg)break;
     }}
     if(neededMsg){
       html+='<div style="font-size:12px;color:var(--text2);margin-top:8px">To add another court: need '+neededMsg+'</div>';
@@ -1166,7 +1166,7 @@ async function autoSyncRsvpsToSchedule(){
   const inPlayers=contacts.filter(function(c){
     if(rsvpMap[String(c.id)]!=='yes')return false;
     // If player has availability set and schedule has a day, check availability
-    if(schedDay!==null&&c.availDays&&c.availDays.length&&c.availDays.includes(schedDay))return false;
+    if(schedDay!==null&&c.availDays&&c.availDays.length&&!c.availDays.includes(schedDay))return false;
     return true;
   });
   // Apply waitlist: only include active (non-waitlisted) players
