@@ -1752,7 +1752,7 @@ function updateSchedCutoffUI(){
     statusEl.textContent='No cutoff set — registration open';
   }
 }
-function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+async function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function shareSchedule(){
   if(!schedule||!schedule.generated){alert('Generate a schedule first.');return;}
   var short={mixed:'Mixed',mens:"Men's",womens:"Women's"};
