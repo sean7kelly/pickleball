@@ -231,6 +231,15 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <button class="btn" onclick="shareSchedule()">📤 Share</button>
       <button class="btn btn-danger btn-sm" onclick="resetSchedule()">🗑️ Clear</button>
     </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">🔒 Close registration:</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" id="sched-cutoff-date" style="height:32px;font-size:13px" onchange="saveSchedCutoff()">
+        <input type="time" id="sched-cutoff-time" style="height:32px;font-size:13px;width:120px" onchange="saveSchedCutoff()">
+        <button class="btn btn-xs btn-danger" onclick="clearSchedCutoff()">Clear</button>
+      </div>
+      <div id="sched-cutoff-status" style="font-size:11px;color:var(--text2);margin-top:4px"></div>
+    </div>
     <div id="sched-alert" style="margin-top:10px"></div>
   </div>
   <div id="sched-back-bar" style="display:none;margin-bottom:8px">
@@ -1707,7 +1716,43 @@ async function recordResult(mid){
   match.recorded=true;renderSchedule();
   try{setSyncing();const updated=[...new Set([...match.team1,...match.team2].map(p=>p.id))].map(id=>contacts.find(c=>c.id===id)).filter(Boolean);await Promise.all([api('schedules/save',slimSchedule(schedule)),...updated.map(c=>api('contacts/upsert',contactToDb(c)))]);setSynced();}catch(e){setSyncErr();}
 }
-async function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+async function saveSchedCutoff(){
+  if(!schedule)return;
+  var d=document.getElementById('sched-cutoff-date').value;
+  var t=document.getElementById('sched-cutoff-time').value||'23:59';
+  if(d){
+    schedule.rsvpCutoff=new Date(d+'T'+t+':00').toISOString();
+  } else {
+    schedule.rsvpCutoff=null;
+  }
+  updateSchedCutoffUI();
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+}
+function clearSchedCutoff(){
+  if(!schedule)return;
+  schedule.rsvpCutoff=null;
+  document.getElementById('sched-cutoff-date').value='';
+  document.getElementById('sched-cutoff-time').value='';
+  updateSchedCutoffUI();
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+}
+function updateSchedCutoffUI(){
+  var dateEl=document.getElementById('sched-cutoff-date');
+  var timeEl=document.getElementById('sched-cutoff-time');
+  var statusEl=document.getElementById('sched-cutoff-status');
+  if(!dateEl||!timeEl||!statusEl)return;
+  if(schedule&&schedule.rsvpCutoff){
+    var dt=new Date(schedule.rsvpCutoff);
+    dateEl.value=dt.toISOString().slice(0,10);
+    timeEl.value=dt.toTimeString().slice(0,5);
+    var closed=dt<new Date();
+    statusEl.textContent=closed?'⛔ Registration closed':'⏰ Closes: '+dt.toLocaleString();
+    statusEl.style.color=closed?'var(--red)':'var(--text2)';
+  } else {
+    statusEl.textContent='No cutoff set — registration open';
+  }
+}
+function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 function shareSchedule(){
   if(!schedule||!schedule.generated){alert('Generate a schedule first.');return;}
   var short={mixed:'Mixed',mens:"Men's",womens:"Women's"};
