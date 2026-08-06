@@ -2110,7 +2110,7 @@ function updateCutoffUI(){
   }
 }
 
-async function saveRsvpCutoff(){
+async async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
@@ -2121,7 +2121,7 @@ async function saveRsvpCutoff(){
     schedule.rsvpCutoff=null;
   }
   updateCutoffUI();
-  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
 
 async function clearRsvpCutoff(){
@@ -2189,7 +2189,7 @@ function updateCutoffUI(){
   }
 }
 
-async function saveRsvpCutoff(){
+async async function saveRsvpCutoff(){
   if(!schedule)return;
   const d=document.getElementById('rsvp-cutoff-date').value;
   const t=document.getElementById('rsvp-cutoff-time').value||'23:59';
@@ -2200,7 +2200,7 @@ async function saveRsvpCutoff(){
     schedule.rsvpCutoff=null;
   }
   updateCutoffUI();
-  try{setSyncing();const res=await api('schedules/save',slim);console.log('Save response:',JSON.stringify(res).slice(0,200));setSynced();}catch(e){setSyncErr();console.error('Save error:',e);}
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
 
 async function clearRsvpCutoff(){
