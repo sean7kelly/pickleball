@@ -513,6 +513,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
   </div>
   <div id="public-schedule-picker"></div>
   <div id="waitlist-section" style="display:none"></div>
+  <div id="rsvp-log-card" style="display:none"><div class="card" style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px">📋 RSVP Log</div><div id="rsvp-log-section"></div></div></div>
   <div class="pgrid" id="contact-grid"></div>
 </div>
 <!-- STATS TAB -->
@@ -591,13 +592,13 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false,rsvpLog:r.rsvp_log||[]};}
 function slimSchedule(s){
   if(!s)return null;
   return {
     id:s.id, name:s.name||'Sunday Schedule', date:s.date||'', raw_date:s.rawDate||'',
     rounds:s.rounds||10, mode:s.mode||'auto',
-    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null, waitlist_override:s.waitlistOverride||false,
+    pairs:s.pairs||[], fixed_matches:s.fixedMatches||[], rsvp_cutoff:s.rsvpCutoff||null, waitlist_override:s.waitlistOverride||false, rsvp_log:s.rsvpLog||[],
     generated:s.generated||false, selected:s.selected||[], rsvps:s.rsvps||{},
     matches:(s.matches||[]).map(function(round){
       return {
@@ -804,6 +805,29 @@ function toggleWaitlistOverride(){
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 
+function renderRsvpLog(){
+  var el=document.getElementById('rsvp-log-section');
+  if(!el)return;
+  if(!schedule||!schedule.rsvpLog||!schedule.rsvpLog.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text2)">No RSVP activity yet.</div>';
+    return;
+  }
+  var log=[...schedule.rsvpLog].reverse(); // newest first
+  var html='<div style="max-height:300px;overflow-y:auto">';
+  log.forEach(function(entry){
+    var dt=new Date(entry.time);
+    var timeStr=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var icon=entry.status==='yes'?'✓':entry.status==='no'?'✕':'—';
+    var color=entry.status==='yes'?'var(--green-dk)':entry.status==='no'?'var(--red)':'var(--text2)';
+    html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">'
+      +'<span><span style="color:'+color+';font-weight:700">'+icon+'</span> '+entry.name+'</span>'
+      +'<span style="color:var(--text2)">'+timeStr+'</span>'
+      +'</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
 function calcWaitlist(mode){
   // Get all 'yes' RSVPs for current schedule
   if(!schedule)return{active:[],waitlist:[],courts:0,needM:0,needF:0,nM:0,nF:0};
@@ -956,7 +980,7 @@ function renderWaitlist(){
   el.innerHTML=html;
 }
 
-function renderContacts(){renderPublicSchedulePicker();renderWaitlist();_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
+function renderContacts(){renderPublicSchedulePicker();renderWaitlist();if(adminUnlocked&&schedule){var logCard=document.getElementById('rsvp-log-card');if(logCard)logCard.style.display='block';renderRsvpLog();}else{var logCard=document.getElementById('rsvp-log-card');if(logCard)logCard.style.display='none';}_copyNumbersPage=0;var btn=document.querySelector('[onclick="copyNumbersBtn()"]');if(btn)btn.textContent='📋 Copy numbers';
   const g=document.getElementById('contact-grid');
   contacts.forEach(c=>{if(c.invited===undefined)c.invited=true;});
   const rawRsvps=(schedule&&schedule.rsvps)||{};
@@ -1187,11 +1211,20 @@ async function setRsvp(id,val){
   if(!schedule.rsvps)schedule.rsvps={};
   const key=String(id);
   var existingStatus=getRsvpStatus(schedule.rsvps[key]);
+  var newStatus;
   if(existingStatus===val){
     schedule.rsvps[key]=null; // toggle off
+    newStatus=null;
   } else {
     schedule.rsvps[key]={s:val,t:Date.now()}; // save with timestamp
+    newStatus=val;
   }
+  // Append to RSVP log
+  var c2=contacts.find(function(x){return x.id===id||x.id===+id;});
+  if(!schedule.rsvpLog)schedule.rsvpLog=[];
+  schedule.rsvpLog.push({id:id,name:c2?c2.name:'Unknown',status:newStatus,time:Date.now()});
+  // Keep log to last 200 entries
+  if(schedule.rsvpLog.length>200)schedule.rsvpLog=schedule.rsvpLog.slice(-200);
   renderContacts();autoSyncRsvpsToSchedule();
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
