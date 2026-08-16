@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+.netlify/
+node_modules/
+.DS_Store
+
+# Claude Code: settings.json is shared, settings.local.json is per-machine
+.claude/settings.local.json

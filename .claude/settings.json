@@ -1,0 +1,6 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "printf '\\033[1;48;5;155;38;5;235m Sunday Pickleball Group \\033[0m'"
+  }
+}
