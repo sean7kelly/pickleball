@@ -1732,40 +1732,56 @@ async function genSchedule(){
   const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
   var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
-  var playerInfo=activePlayers.map(function(p){return {id:p.id,name:p.name,gender:p.gender,dupr:p.dupr||3.5};});
-  var forcedPairs=(usePairs||[]).map(function(fp){
-    var p1=activePlayers.find(function(p){return p.id===fp.p1||p.id===+fp.p1;});
-    var p2=activePlayers.find(function(p){return p.id===fp.p2||p.id===+fp.p2;});
-    return {p1:fp.p1,p2:fp.p2,p1name:p1?p1.name:'?',p2name:p2?p2.name:'?',rounds:fp.rounds||1};
+
+  // Map real IDs to short P1/P2 labels for AI
+  var idMap={};
+  activePlayers.forEach(function(p,i){idMap['P'+(i+1)]=p.id;});
+  function findPlayer(label){
+    var realId=idMap[String(label)];
+    if(!realId)return null;
+    return activePlayers.find(function(p){return p.id===realId||p.id===+realId;})||null;
+  }
+
+  var userPrompt='Generate a '+ROUNDS+'-round pickleball schedule.\n\nPLAYERS:\n';
+  activePlayers.forEach(function(p,i){
+    userPrompt+='P'+(i+1)+': '+p.name+' | '+p.gender+' | DUPR '+(p.dupr||3.5)+'\n';
   });
-  var userPrompt='Generate a '+ROUNDS+'-round pickleball schedule for '+activePlayers.length+' players.\n\nPLAYERS:\n'+playerInfo.map(function(p){return '- ID:'+p.id+' Name:'+p.name+' Gender:'+p.gender+' DUPR:'+p.dupr;}).join('\n');
-  userPrompt+='\n\nMODE: '+mode+' (auto=best mix, mixed=mixed doubles only, gender=gender doubles only)';
-  if(forcedPairs.length){userPrompt+='\n\nFORCED PAIRS:\n'+forcedPairs.map(function(fp){return '- '+fp.p1name+'('+fp.p1+')+'+fp.p2name+'('+fp.p2+') for '+fp.rounds+' rounds';}).join('\n');}
+  userPrompt+='\nMODE: '+mode;
+  var fp2=(usePairs||[]).filter(function(fp){return activePlayers.find(function(p){return p.id===fp.p1||p.id===+fp.p1;})&&activePlayers.find(function(p){return p.id===fp.p2||p.id===+fp.p2;});});
+  if(fp2.length){
+    userPrompt+='\n\nFORCED PAIRS:\n';
+    fp2.forEach(function(fp){
+      var p1=activePlayers.find(function(p){return p.id===fp.p1||p.id===+fp.p1;});
+      var p2=activePlayers.find(function(p){return p.id===fp.p2||p.id===+fp.p2;});
+      var i1=activePlayers.indexOf(p1)+1,i2=activePlayers.indexOf(p2)+1;
+      userPrompt+='P'+i1+'('+p1.name+') + P'+i2+'('+p2.name+') for '+(fp.rounds||1)+' rounds\n';
+    });
+  }
+  userPrompt+='\nReturn ONLY valid JSON: {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
+
   try{
     var resp=await fetch('/.netlify/functions/generate-schedule',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({system:"Respond ONLY with a single valid JSON object. No introduction, no explanation, no markdown, no code blocks. Your entire response must be parseable by JSON.parse().\n\nYou are a pickleball schedule optimizer. Given players with gender and DUPR ratings, output the optimal schedule.\n\nPRIORITIES:\n1. Use all courts every round. Distribute sit-outs evenly.\n2. No repeated partners unless unavoidable.\n3. Maximize unique player encounters (as partner or opponent).\n4. Minimize repeated opponents.\n5. DUPR difference per court: target \u22640.25, max 0.40.\n6. Rotate mens/womens/mixed. Both teams in mixed must be mixed.\n\nFORCED PAIRS: Honor these partnerships for specified rounds.\n\nOUTPUT - respond with ONLY this JSON structure, nothing else:\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"id1\",\"id2\"],\"team2\":[\"id3\",\"id4\"]}],\"sitters\":[]}],\"warnings\":[]}\n\nRules:\n- Use exact player IDs as strings\n- Every player appears in every round (playing or sitting)\n- Sitters rotate fairly across rounds\n- type must be \"mixed\", \"mens\", or \"womens\"\n- Both teams in a mixed match must have 1M+1F each",messages:[{role:'user',content:userPrompt}]})
+      body:JSON.stringify({system:"Respond ONLY with a JSON object. No text before or after. No markdown. Your entire response must be valid JSON parseable by JSON.parse().\n\nYou are a pickleball schedule optimizer. Create the most competitive and socially well-distributed schedule.\n\nPRIORITIES:\n1. Use all courts every round. Distribute sit-outs evenly if players dont divide evenly.\n2. Never repeat partners unless mathematically unavoidable.\n3. Maximize unique player encounters (as partner or opponent).\n4. Minimize repeated opponents.\n5. DUPR difference per court: target \u22640.25, max 0.40.\n6. Rotate game types. Both teams in mixed must each have 1M+1F.\n\nOUTPUT FORMAT (JSON only, nothing else):\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"P1\",\"P2\"],\"team2\":[\"P3\",\"P4\"]}],\"sitters\":[]}],\"warnings\":[]}",messages:[{role:'user',content:userPrompt}]})
     });
     var rawText=await resp.text();
     var data;
-    try{data=JSON.parse(rawText);}catch(e){throw new Error('Function returned non-JSON: '+rawText.slice(0,100));}
+    try{data=JSON.parse(rawText);}catch(e){throw new Error('Function error: '+rawText.slice(0,150));}
     if(data.error)throw new Error('API error: '+(data.error.message||JSON.stringify(data.error)));
     if(data.type==='error')throw new Error('API error: '+((data.error&&data.error.message)||data.type));
     var text=data.content&&data.content[0]&&data.content[0].text;
-    if(!text)throw new Error('No text in response: '+JSON.stringify(data).slice(0,200));
+    if(!text)throw new Error('No text: '+JSON.stringify(data).slice(0,200));
     // Extract JSON using balanced brace matching
     var startIdx=text.indexOf('{');
-    if(startIdx<0)throw new Error('No JSON found in: '+text.slice(0,200));
+    if(startIdx<0)throw new Error('No JSON in: '+text.slice(0,200));
     var depth=0,endIdx=-1;
     for(var ci=startIdx;ci<text.length;ci++){
       if(text[ci]==='{')depth++;
       else if(text[ci]==='}'){depth--;if(depth===0){endIdx=ci;break;}}
     }
-    if(endIdx<0)throw new Error('Unbalanced JSON in: '+text.slice(0,200));
-    var jsonStr=text.slice(startIdx,endIdx+1);
-    var aiResult=JSON.parse(jsonStr);
-
+    if(endIdx<0)throw new Error('Unbalanced JSON');
+    var aiResult=JSON.parse(text.slice(startIdx,endIdx+1));
     var rounds=aiResult.rounds.map(function(rnd,ri){
       var matches=rnd.matches.map(function(m,mi){
         var t1=m.team1.map(function(id){return findPlayer(id)||{id:id,name:'?',gender:'M',dupr:3.5};});
@@ -1795,6 +1811,7 @@ async function genSchedule(){
     try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
   }
 }
+
 async function genScheduleSilent(activePlayers){
   if(!activePlayers||activePlayers.length<4)return;
   const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
