@@ -1262,8 +1262,11 @@ async function autoSyncRsvpsToSchedule(){
     activePlayers=activeIds?inPlayers.filter(function(p){return activeIds.has(p.id);}):inPlayers;
   }
   schedule.selected=activePlayers.map(p=>p.id);
-  if(activePlayers.length>=4)await genScheduleSilent(activePlayers);
-  else{schedule.matches=[];schedule.generated=false;renderSchedule();}
+  if(activePlayers.length>=4){
+    // Only auto-regenerate if not already manually generated (to avoid overwriting AI schedule)
+    if(!schedule.generated)await genScheduleSilent(activePlayers);
+    else renderSchedule(); // just re-render existing schedule
+  } else{schedule.matches=[];schedule.generated=false;renderSchedule();}
 }
 function setRsvpQuickSunday(){const t=new Date();const diff=t.getDay()===0?7:7-t.getDay();const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Sunday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function setRsvpQuickMonday(){const t=new Date();const diff=t.getDay()===1?7:(8-t.getDay())%7||7;const d=new Date(t);d.setDate(t.getDate()+diff);document.getElementById('rsvp-quick-date').value=d.toISOString().slice(0,10);if(!document.getElementById('rsvp-quick-name').value)document.getElementById('rsvp-quick-name').value='Monday '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
