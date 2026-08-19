@@ -9,13 +9,11 @@ exports.handler = async function(event) {
   }
   
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if(!apiKey) {
-    return {statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'API key not configured'})};
-  }
+  if(!apiKey) return {statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'API key not configured'})};
   
   let body;
   try { body = JSON.parse(event.body); } 
-  catch(e) { return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Invalid JSON: '+e.message})}; }
+  catch(e) { return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Invalid JSON'})}; }
   
   const { system, messages, max_tokens } = body;
   
@@ -41,15 +39,11 @@ exports.handler = async function(event) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        resolve({
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: data
-        });
+        resolve({statusCode:200, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:data});
       });
     });
     req.on('error', (e) => {
-      resolve({ statusCode: 500, headers: {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body: JSON.stringify({ error: e.message }) });
+      resolve({statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:e.message})});
     });
     req.write(postData);
     req.end();
