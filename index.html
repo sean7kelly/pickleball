@@ -1754,13 +1754,19 @@ async function genSchedule(){
     if(!text)throw new Error('No response: '+JSON.stringify(data).slice(0,200));
     var jsonStr=text.replace(/```json|```/g,'').trim();
     var aiResult=JSON.parse(jsonStr);
+    // Map short IDs (P1, P2...) back to real player objects
+    function findPlayer(shortId){
+      var sid=String(shortId).replace('P','');
+      var realId=idMap[sid];
+      return activePlayers.find(function(p){return p.id===realId||p.id===+realId;})||null;
+    }
     var rounds=aiResult.rounds.map(function(rnd,ri){
       var matches=rnd.matches.map(function(m,mi){
-        var t1=m.team1.map(function(id){return activePlayers.find(function(p){return p.id===id||p.id===+id;})||{id:id,name:'?',gender:'M',dupr:3.5};});
-        var t2=m.team2.map(function(id){return activePlayers.find(function(p){return p.id===id||p.id===+id;})||{id:id,name:'?',gender:'M',dupr:3.5};});
+        var t1=m.team1.map(function(id){return findPlayer(id)||{id:id,name:'?',gender:'M',dupr:3.5};});
+        var t2=m.team2.map(function(id){return findPlayer(id)||{id:id,name:'?',gender:'M',dupr:3.5};});
         return {type:m.type||'mixed',team1:t1,team2:t2,score1:'',score2:'',id:ri+'c'+mi,recorded:false};
       });
-      var sitters=(rnd.sitters||[]).map(function(id){return activePlayers.find(function(p){return p.id===id||p.id===+id;})||null;}).filter(Boolean);
+      var sitters=(rnd.sitters||[]).map(function(id){return findPlayer(id)||null;}).filter(Boolean);
       return {round:rnd.round||ri+1,matches:matches,sitters:sitters};
     });
     schedule.matches=rounds;
