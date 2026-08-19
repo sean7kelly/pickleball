@@ -1381,7 +1381,7 @@ async function openSchedule(id){
   renderSchedule();
 
 }
-async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
+async async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
 async function deleteSchedule(){if(!schedule)return;if(!confirm(`Delete "${schedule.name}"?`))return;const id=schedule.id;schedules=schedules.filter(s=>s.id!==id);schedule=null;renderScheduleList();renderToggles();document.getElementById('sched-out').innerHTML='';try{setSyncing();await api('schedules/delete',{id});setSynced();}catch(e){setSyncErr();}}
 async function renameSchedule(){if(!schedule)return;const name=document.getElementById('sched-name-input').value.trim();if(!name)return;schedule.name=name;document.getElementById('sched-name-display').textContent=name;try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 async function setRounds(n){if(!schedule)return;schedule.rounds=n;updateRoundsBtns();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
