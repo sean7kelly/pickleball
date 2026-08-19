@@ -1225,11 +1225,12 @@ async function setRsvp(id,val){
   schedule.rsvpLog.push({id:id,name:c2?c2.name:'Unknown',status:newStatus,time:Date.now()});
   // Keep log to last 200 entries
   if(schedule.rsvpLog.length>200)schedule.rsvpLog=schedule.rsvpLog.slice(-200);
+  backupRsvps();
   renderContacts();autoSyncRsvpsToSchedule();
   try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
 }
 async function markAllIn(){if(!schedule){alert('Pick a date first.');return;}if(!schedule.rsvps)schedule.rsvps={};contacts.forEach(c=>schedule.rsvps[String(c.id)]='yes');renderContacts();autoSyncRsvpsToSchedule();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
-async function clearRsvps(){if(!schedule){alert('Pick a date first.');return;}schedule.rsvps={};renderContacts();autoSyncRsvpsToSchedule();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+async function clearRsvps(){backupRsvps();if(!schedule){alert('Pick a date first.');return;}schedule.rsvps={};renderContacts();autoSyncRsvpsToSchedule();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 async function toggleInvite(id){const c=contacts.find(x=>x.id===id);if(!c)return;c.invited=!c.invited;renderContacts();try{setSyncing();await api('contacts/upsert',contactToDb(c));setSynced();}catch(e){setSyncErr();}}
 function selectAllInvite(){contacts.forEach(c=>c.invited=true);renderContacts();batchSaveContacts();}
 function selectNoneInvite(){contacts.forEach(c=>c.invited=false);renderContacts();batchSaveContacts();}
@@ -1381,7 +1382,40 @@ async function openSchedule(id){
   renderSchedule();
 
 }
-async async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
+async function backupRsvps(){
+  // Save current schedule RSVPs to localStorage as emergency backup
+  if(!schedule||!schedule.rsvps)return;
+  try{
+    var backup={
+      scheduleId:schedule.id,
+      scheduleName:schedule.name,
+      rsvps:schedule.rsvps,
+      timestamp:Date.now()
+    };
+    localStorage.setItem('rsvp_backup_'+schedule.id, JSON.stringify(backup));
+    // Also keep a "latest" backup
+    localStorage.setItem('rsvp_backup_latest', JSON.stringify(backup));
+  }catch(e){}
+}
+
+function restoreRsvpBackup(){
+  if(!schedule)return;
+  // Try schedule-specific backup first, then latest
+  var raw=null;
+  try{
+    raw=localStorage.getItem('rsvp_backup_'+schedule.id)||localStorage.getItem('rsvp_backup_latest');
+  }catch(e){}
+  if(!raw){alert('No backup found.');return;}
+  var backup=JSON.parse(raw);
+  var dt=new Date(backup.timestamp).toLocaleString();
+  if(!confirm('Restore RSVPs from backup?\n\nSchedule: '+backup.scheduleName+'\nBacked up: '+dt+'\n\nThis will overwrite current RSVPs.'))return;
+  schedule.rsvps=backup.rsvps;
+  renderContacts();
+  autoSyncRsvpsToSchedule();
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();alert('RSVPs restored!');}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+}
+
+async function createSchedule(){const name=prompt('Name for this schedule:','Sunday '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));if(!name)return;const s=newScheduleObj(name);schedules.unshift(s);schedule=s;try{setSyncing();await api('schedules/save',slimSchedule(s));setSynced();}catch(e){setSyncErr();}renderScheduleList();renderToggles();renderSchedule();}
 async function deleteSchedule(){if(!schedule)return;if(!confirm(`Delete "${schedule.name}"?`))return;const id=schedule.id;schedules=schedules.filter(s=>s.id!==id);schedule=null;renderScheduleList();renderToggles();document.getElementById('sched-out').innerHTML='';try{setSyncing();await api('schedules/delete',{id});setSynced();}catch(e){setSyncErr();}}
 async function renameSchedule(){if(!schedule)return;const name=document.getElementById('sched-name-input').value.trim();if(!name)return;schedule.name=name;document.getElementById('sched-name-display').textContent=name;try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
 async function setRounds(n){if(!schedule)return;schedule.rounds=n;updateRoundsBtns();try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
