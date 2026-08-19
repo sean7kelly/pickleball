@@ -19,17 +19,11 @@ exports.handler = async function(event) {
   
   const { system, messages, max_tokens } = body;
   
-  // Add assistant prefill to force JSON output
-  const messagesWithPrefill = [
-    ...messages,
-    { role: 'assistant', content: '{' }
-  ];
-  
   const postData = JSON.stringify({
     model: 'claude-sonnet-4-6',
     max_tokens: max_tokens || 4000,
     system,
-    messages: messagesWithPrefill
+    messages
   });
   
   return new Promise((resolve) => {
@@ -47,24 +41,11 @@ exports.handler = async function(event) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        // Parse response and prepend the { prefill to the text
-        try {
-          const parsed = JSON.parse(data);
-          if(parsed.content && parsed.content[0] && parsed.content[0].text) {
-            parsed.content[0].text = '{' + parsed.content[0].text;
-          }
-          resolve({
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify(parsed)
-          });
-        } catch(e) {
-          resolve({
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: data
-          });
-        }
+        resolve({
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: data
+        });
       });
     });
     req.on('error', (e) => {
