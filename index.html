@@ -1760,12 +1760,7 @@ async function genSchedule(){
     if(startIdx<0||endIdx<0)throw new Error('No JSON found in: '+text.slice(0,200));
     var jsonStr=text.slice(startIdx,endIdx+1);
     var aiResult=JSON.parse(jsonStr);
-    // Map short IDs (P1, P2...) back to real player objects
-    function findPlayer(shortId){
-      var sid=String(shortId).replace('P','');
-      var realId=idMap[sid];
-      return activePlayers.find(function(p){return p.id===realId||p.id===+realId;})||null;
-    }
+
     var rounds=aiResult.rounds.map(function(rnd,ri){
       var matches=rnd.matches.map(function(m,mi){
         var t1=m.team1.map(function(id){return findPlayer(id)||{id:id,name:'?',gender:'M',dupr:3.5};});
