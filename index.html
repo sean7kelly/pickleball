@@ -1754,10 +1754,15 @@ async function genSchedule(){
     if(data.type==='error')throw new Error('API error: '+((data.error&&data.error.message)||data.type));
     var text=data.content&&data.content[0]&&data.content[0].text;
     if(!text)throw new Error('No text in response: '+JSON.stringify(data).slice(0,200));
-    // Extract JSON from response - find first { to last }
+    // Extract JSON using balanced brace matching
     var startIdx=text.indexOf('{');
-    var endIdx=text.lastIndexOf('}');
-    if(startIdx<0||endIdx<0)throw new Error('No JSON found in: '+text.slice(0,200));
+    if(startIdx<0)throw new Error('No JSON found in: '+text.slice(0,200));
+    var depth=0,endIdx=-1;
+    for(var ci=startIdx;ci<text.length;ci++){
+      if(text[ci]==='{')depth++;
+      else if(text[ci]==='}'){depth--;if(depth===0){endIdx=ci;break;}}
+    }
+    if(endIdx<0)throw new Error('Unbalanced JSON in: '+text.slice(0,200));
     var jsonStr=text.slice(startIdx,endIdx+1);
     var aiResult=JSON.parse(jsonStr);
 
