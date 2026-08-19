@@ -1747,12 +1747,18 @@ async function genSchedule(){
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({system:"Respond ONLY with a single valid JSON object. No introduction, no explanation, no markdown, no code blocks. Your entire response must be parseable by JSON.parse().\n\nYou are a pickleball schedule optimizer. Given players with gender and DUPR ratings, output the optimal schedule.\n\nPRIORITIES:\n1. Use all courts every round. Distribute sit-outs evenly.\n2. No repeated partners unless unavoidable.\n3. Maximize unique player encounters (as partner or opponent).\n4. Minimize repeated opponents.\n5. DUPR difference per court: target \u22640.25, max 0.40.\n6. Rotate mens/womens/mixed. Both teams in mixed must be mixed.\n\nFORCED PAIRS: Honor these partnerships for specified rounds.\n\nOUTPUT - respond with ONLY this JSON structure, nothing else:\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"id1\",\"id2\"],\"team2\":[\"id3\",\"id4\"]}],\"sitters\":[]}],\"warnings\":[]}\n\nRules:\n- Use exact player IDs as strings\n- Every player appears in every round (playing or sitting)\n- Sitters rotate fairly across rounds\n- type must be \"mixed\", \"mens\", or \"womens\"\n- Both teams in a mixed match must have 1M+1F each",messages:[{role:'user',content:userPrompt}]})
     });
-    var data=await resp.json();
-    if(data.error)throw new Error('API error: '+data.error.message||JSON.stringify(data.error));
-    if(data.type==='error')throw new Error('API error: '+(data.error&&data.error.message)||data.type);
+    var rawText=await resp.text();
+    var data;
+    try{data=JSON.parse(rawText);}catch(e){throw new Error('Function returned non-JSON: '+rawText.slice(0,100));}
+    if(data.error)throw new Error('API error: '+(data.error.message||JSON.stringify(data.error)));
+    if(data.type==='error')throw new Error('API error: '+((data.error&&data.error.message)||data.type));
     var text=data.content&&data.content[0]&&data.content[0].text;
-    if(!text)throw new Error('No response: '+JSON.stringify(data).slice(0,200));
-    var jsonStr=text.replace(/```json|```/g,'').trim();
+    if(!text)throw new Error('No text in response: '+JSON.stringify(data).slice(0,200));
+    // Extract JSON from response - find first { to last }
+    var startIdx=text.indexOf('{');
+    var endIdx=text.lastIndexOf('}');
+    if(startIdx<0||endIdx<0)throw new Error('No JSON found in: '+text.slice(0,200));
+    var jsonStr=text.slice(startIdx,endIdx+1);
     var aiResult=JSON.parse(jsonStr);
     // Map short IDs (P1, P2...) back to real player objects
     function findPlayer(shortId){
