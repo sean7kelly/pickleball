@@ -1,11 +1,9 @@
 const https = require('https');
 
 exports.handler = async function(event) {
-  // Handle CORS preflight
   if(event.httpMethod === 'OPTIONS') {
     return {statusCode:200, headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST'}};
   }
-  
   if(event.httpMethod !== 'POST') {
     return {statusCode:405, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Method Not Allowed'})};
   }
@@ -16,23 +14,22 @@ exports.handler = async function(event) {
   }
   
   let body;
-  try { 
-    body = JSON.parse(event.body); 
-  } catch(e) { 
-    return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Invalid JSON: '+e.message})}; 
-  }
+  try { body = JSON.parse(event.body); } 
+  catch(e) { return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Invalid JSON: '+e.message})}; }
   
   const { system, messages, max_tokens } = body;
   
-  if(!system || !messages) {
-    return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Missing system or messages'})};
-  }
+  // Add assistant prefill to force JSON output
+  const messagesWithPrefill = [
+    ...messages,
+    { role: 'assistant', content: '{' }
+  ];
   
   const postData = JSON.stringify({
     model: 'claude-sonnet-4-6',
     max_tokens: max_tokens || 4000,
     system,
-    messages
+    messages: messagesWithPrefill
   });
   
   return new Promise((resolve) => {
@@ -50,19 +47,28 @@ exports.handler = async function(event) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        resolve({
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: data
-        });
+        // Parse response and prepend the { prefill to the text
+        try {
+          const parsed = JSON.parse(data);
+          if(parsed.content && parsed.content[0] && parsed.content[0].text) {
+            parsed.content[0].text = '{' + parsed.content[0].text;
+          }
+          resolve({
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify(parsed)
+          });
+        } catch(e) {
+          resolve({
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: data
+          });
+        }
       });
     });
     req.on('error', (e) => {
-      resolve({ 
-        statusCode: 500, 
-        headers: {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'},
-        body: JSON.stringify({ error: e.message }) 
-      });
+      resolve({ statusCode: 500, headers: {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body: JSON.stringify({ error: e.message }) });
     });
     req.write(postData);
     req.end();
