@@ -1,15 +1,32 @@
 const https = require('https');
 
 exports.handler = async function(event) {
-  if(event.httpMethod !== 'POST') return {statusCode:405,body:'Method Not Allowed'};
+  // Handle CORS preflight
+  if(event.httpMethod === 'OPTIONS') {
+    return {statusCode:200, headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST'}};
+  }
+  
+  if(event.httpMethod !== 'POST') {
+    return {statusCode:405, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Method Not Allowed'})};
+  }
   
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if(!apiKey) return {statusCode:500,body:JSON.stringify({error:'API key not configured'})};
+  if(!apiKey) {
+    return {statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'API key not configured'})};
+  }
   
   let body;
-  try { body = JSON.parse(event.body); } catch(e) { return {statusCode:400,body:JSON.stringify({error:'Invalid JSON'})}; }
+  try { 
+    body = JSON.parse(event.body); 
+  } catch(e) { 
+    return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Invalid JSON: '+e.message})}; 
+  }
   
   const { system, messages, max_tokens } = body;
+  
+  if(!system || !messages) {
+    return {statusCode:400, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Missing system or messages'})};
+  }
   
   const postData = JSON.stringify({
     model: 'claude-sonnet-4-6',
@@ -34,14 +51,18 @@ exports.handler = async function(event) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         resolve({
-          statusCode: res.statusCode,
+          statusCode: 200,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
           body: data
         });
       });
     });
     req.on('error', (e) => {
-      resolve({ statusCode: 500, body: JSON.stringify({ error: e.message }) });
+      resolve({ 
+        statusCode: 500, 
+        headers: {'Content-Type':'application/json','Access-Control-Allow-Origin':'*'},
+        body: JSON.stringify({ error: e.message }) 
+      });
     });
     req.write(postData);
     req.end();
