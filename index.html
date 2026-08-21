@@ -819,8 +819,9 @@ function renderRsvpLog(){
     var timeStr=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     var icon=entry.status==='yes'?'✓':entry.status==='no'?'✕':'—';
     var color=entry.status==='yes'?'var(--green-dk)':entry.status==='no'?'var(--red)':'var(--text2)';
+    var byLabel=entry.by==='admin'?' (admin)':entry.by==='self'?' (self)':'';
     html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px">'
-      +'<span><span style="color:'+color+';font-weight:700">'+icon+'</span> '+entry.name+'</span>'
+      +'<span><span style="color:'+color+';font-weight:700">'+icon+'</span> '+entry.name+'<span style="color:var(--text2);font-size:11px">'+byLabel+'</span></span>'
       +'<span style="color:var(--text2)">'+timeStr+'</span>'
       +'</div>';
   });
@@ -1222,7 +1223,11 @@ async function setRsvp(id,val){
   // Append to RSVP log
   var c2=contacts.find(function(x){return x.id===id||x.id===+id;});
   if(!schedule.rsvpLog)schedule.rsvpLog=[];
-  schedule.rsvpLog.push({id:id,name:c2?c2.name:'Unknown',status:newStatus,time:Date.now()});
+  var logEntry={id:id,name:c2?c2.name:'Unknown',status:newStatus,time:Date.now()};
+  if(adminUnlocked)logEntry.by='admin';
+  else if(rsvpLandingMode)logEntry.by='self';
+  else logEntry.by='unknown';
+  schedule.rsvpLog.push(logEntry);
   // Keep log to last 200 entries
   if(schedule.rsvpLog.length>200)schedule.rsvpLog=schedule.rsvpLog.slice(-200);
   backupRsvps();
