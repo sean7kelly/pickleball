@@ -1213,11 +1213,16 @@ async function setRsvp(id,val){
   const key=String(id);
   var existingStatus=getRsvpStatus(schedule.rsvps[key]);
   var newStatus;
-  if(existingStatus===val){
-    schedule.rsvps[key]=null; // toggle off
+  if(rsvpLandingMode){
+    // On RSVP landing page: no toggle - always set directly
+    schedule.rsvps[key]={s:val,t:Date.now()};
+    newStatus=val;
+  } else if(existingStatus===val){
+    // In admin/contacts view: toggle off if same value
+    schedule.rsvps[key]=null;
     newStatus=null;
   } else {
-    schedule.rsvps[key]={s:val,t:Date.now()}; // save with timestamp
+    schedule.rsvps[key]={s:val,t:Date.now()};
     newStatus=val;
   }
   // Append to RSVP log
