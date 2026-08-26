@@ -2401,6 +2401,18 @@ function verifyRsvpPhone(){
   rsvpVerifiedId=match.id;
   document.getElementById('rsvp-verify-screen').style.display='none';
   document.getElementById('rsvp-landing-header').style.display='block';
+  // Show current RSVP status if already responded
+  var existingRsvp=schedule&&schedule.rsvps?getRsvpStatus(schedule.rsvps[match.id]||schedule.rsvps[String(match.id)]):null;
+  var tapHint=document.getElementById('rsvp-tap-hint');
+  if(tapHint){
+    if(existingRsvp==='yes'){
+      tapHint.innerHTML='<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:8px 12px;margin-bottom:8px;color:#2E7D32;font-weight:600">✓ You\'re currently marked <b>In</b>!</div>Tap below to change:';
+    } else if(existingRsvp==='no'){
+      tapHint.innerHTML='<div style="background:#FFEBEE;border:1px solid #FFCDD2;border-radius:8px;padding:8px 12px;margin-bottom:8px;color:#C62828;font-weight:600">✕ You\'re currently marked <b>Out</b>.</div>Tap below to change:';
+    } else {
+      tapHint.innerHTML='Tap ✓ In or ✕ Out below';
+    }
+  }
   renderContacts();
 }
 function clearRsvpPhoneError(){
