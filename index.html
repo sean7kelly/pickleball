@@ -1740,6 +1740,17 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   return {rounds:allRounds,warnings:pairWarnings};
 }
 async function genScheduleStandard(){
+  // Sync selected from current RSVPs first
+  if(schedule){
+    var rawR=schedule.rsvps||{};
+    var rsvpM2={};Object.keys(rawR).forEach(function(k){rsvpM2[k]=getRsvpStatus(rawR[k]);});
+    var inP=contacts.filter(function(c){return rsvpM2[String(c.id)]==='yes';});
+    if(inP.length>=4){
+      var wl2=calcWaitlist(schedule.mode);
+      var aIds=wl2.active.length>0&&!schedule.waitlistOverride?new Set(wl2.active.map(function(c){return c.id;})):null;
+      schedule.selected=aIds?inP.filter(function(p){return aIds.has(p.id);}).map(function(p){return p.id;}):inP.map(function(p){return p.id;});
+    }
+  }
   const sel=schedule?schedule.selected:[];
   if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
   document.getElementById('sched-alert').innerHTML='';
@@ -1757,6 +1768,17 @@ async function genScheduleStandard(){
 }
 
 async function genSchedule(){
+  // Sync selected from current RSVPs first
+  if(schedule){
+    var rawR=schedule.rsvps||{};
+    var rsvpM3={};Object.keys(rawR).forEach(function(k){rsvpM3[k]=getRsvpStatus(rawR[k]);});
+    var inP2=contacts.filter(function(c){return rsvpM3[String(c.id)]==='yes';});
+    if(inP2.length>=4){
+      var wl3=calcWaitlist(schedule.mode);
+      var aIds2=wl3.active.length>0&&!schedule.waitlistOverride?new Set(wl3.active.map(function(c){return c.id;})):null;
+      schedule.selected=aIds2?inP2.filter(function(p){return aIds2.has(p.id);}).map(function(p){return p.id;}):inP2.map(function(p){return p.id;});
+    }
+  }
   const sel=schedule?schedule.selected:[];
   if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
   document.getElementById('sched-alert').innerHTML='<div class="alert al-info">🤖 AI is generating your optimized schedule...</div>';
