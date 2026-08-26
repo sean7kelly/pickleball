@@ -226,7 +226,8 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     <div class="tgrid" id="toggles"></div>
     <div id="sel-info" style="font-size:12px;color:var(--text2);margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="genSchedule()">⚡ Regenerate schedule</button>
+      <button class="btn btn-primary" onclick="genSchedule()">🤖 AI Schedule</button>
+      <button class="btn btn-sm" onclick="genScheduleStandard()">⚡ Standard</button>
       <button class="btn" onclick="window.print()">🖨️ Print</button>
       <button class="btn" onclick="shareSchedule()">📤 Share</button>
       <button class="btn btn-danger btn-sm" onclick="resetSchedule()">🗑️ Clear</button>
@@ -1738,6 +1739,23 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   }
   return {rounds:allRounds,warnings:pairWarnings};
 }
+async function genScheduleStandard(){
+  const sel=schedule?schedule.selected:[];
+  if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
+  document.getElementById('sched-alert').innerHTML='';
+  const activePlayers=sel.map(id=>contacts.find(c=>c.id===id)).filter(Boolean);
+  const ROUNDS=schedule?schedule.rounds||10:10,mode=schedule?schedule.mode||'auto':'auto';
+  var usePairs=schedule.waitlistOverride?[]:schedule.pairs||[];
+  var buildResult=buildScheduleRounds(activePlayers,ROUNDS,mode,usePairs,schedule.fixedMatches||[]);
+  schedule.matches=buildResult.rounds;
+  var pairWarnings=buildResult.warnings||[];
+  schedule.generated=true;
+  schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  renderSchedule();renderPairs();
+  if(pairWarnings.length)document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">⚠️ '+pairWarnings.map(function(w){return '• '+w;}).join('<br>')+'</div>';
+  try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}
+}
+
 async function genSchedule(){
   const sel=schedule?schedule.selected:[];
   if(sel.length<4){document.getElementById('sched-alert').innerHTML='<div class="alert al-warn">Select at least 4 players.</div>';return;}
