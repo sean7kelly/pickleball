@@ -231,7 +231,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <div style="margin-top:10px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">✏️ Extra AI instructions (optional):</label>
-      <textarea id="ai-extra-prompt" rows="3" placeholder="e.g. Make sure Sean and Paula play together at least twice. Include at least 3 mixed doubles courts per round." style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);resize:vertical;background:var(--surface);color:var(--text1)"></textarea>
+      <textarea id="ai-extra-prompt" rows="3" onchange="saveAiNotes()" onblur="saveAiNotes()" placeholder="e.g. Make sure Sean and Paula play together at least twice. Include at least 3 mixed doubles courts per round." style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);resize:vertical;background:var(--surface);color:var(--text1)"></textarea>
     </div>
     <div style="display:none">
       <button class="btn" onclick="window.print()">🖨️ Print</button>
@@ -599,7 +599,7 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false,rsvpLog:r.rsvp_log||[]};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false,rsvpLog:r.rsvp_log||[],aiNotes:r.ai_notes||''};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -1745,6 +1745,18 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   }
   return {rounds:allRounds,warnings:pairWarnings};
 }
+function saveAiNotes(){
+  if(!schedule)return;
+  var el=document.getElementById('ai-extra-prompt');
+  if(!el)return;
+  schedule.aiNotes=el.value;
+  try{api('schedules/save',slimSchedule(schedule));}catch(e){}
+}
+function loadAiNotes(){
+  var el=document.getElementById('ai-extra-prompt');
+  if(el)el.value=(schedule&&schedule.aiNotes)||'';
+}
+
 async function genScheduleStandard(){
   // Sync selected from current RSVPs first
   if(schedule){
@@ -1972,6 +1984,7 @@ async function saveSchedCutoff(){
     schedule.rsvpCutoff=null;
   }
   updateSchedCutoffUI();
+  loadAiNotes();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 function clearSchedCutoff(){
