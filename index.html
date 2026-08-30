@@ -1816,7 +1816,7 @@ async function genSchedule(){
     var resp=await fetch('/.netlify/functions/generate-schedule',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({system:"Respond ONLY with a JSON object. No text before or after. No markdown. Your entire response must be valid JSON parseable by JSON.parse().\n\nYou are a pickleball schedule optimizer. Create the most competitive and socially well-distributed schedule.\n\nABSOLUTE RULES (never violate these):\n1. Each player appears EXACTLY ONCE per round \u2014 either in one match OR in sitters, never in two matches.\n2. Every player ID must appear in every round (playing or sitting out).\n3. Before finalizing each round, verify no player ID appears more than once across all matches in that round.\n\nOPTIMIZATION PRIORITIES:\n1. Use all courts every round. Distribute sit-outs evenly if players don't divide evenly into groups of 4.\n2. Never repeat partners unless mathematically unavoidable.\n3. Maximize unique player encounters (as partner or opponent).\n4. Minimize repeated opponents.\n5. DUPR difference per court: target \u22640.25, max 0.40.\n6. Rotate game types. Both teams in mixed must each have 1M+1F.\n\nOUTPUT FORMAT (JSON only, nothing else):\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"P1\",\"P2\"],\"team2\":[\"P3\",\"P4\"]}],\"sitters\":[]}],\"warnings\":[]}",messages:[{role:'user',content:userPrompt}]})
+      body:JSON.stringify({system:"SUNDAY PICKLEBALL GLOBAL SCHEDULE OPTIMIZER\n\nROLE: You are a pickleball schedule optimization engine. Generate the best complete multi-round schedule. Optimize the ENTIRE SESSION globally \u2014 not one round at a time.\n\nPRIMARY GOALS (in order): 1) Valid schedule. 2) Maximize partner variety. 3) Maximize opponent variety. 4) Maximize player exposure. 5) DUPR balance.\n\n==================================================\nA. HARD CONSTRAINTS \u2014 NEVER VIOLATE\n==================================================\n\n1. ROUND VALIDITY\n- Each player appears AT MOST ONCE per round.\n- Every game has exactly 4 UNIQUE players.\n- NEVER place a player on two courts in the same round.\n- NEVER place a player on both teams in the same game.\n- Never more games than available courts.\n\n2. FIXED PARTNERS: Honor exactly as supplied (exact count required).\n\n3. GAME FORMAT\n- mixed_only=true: every team = exactly 1M + 1F.\n- Gender doubles: mixed vs mixed, women vs women, or men vs men only.\n\n4. RESTS: Distribute evenly if needed. No rests if everyone fits on courts.\n\n==================================================\nB. OPTIMIZATION PRIORITIES (lexicographic)\n==================================================\n\nP1 PARTNER DIVERSITY: Minimize repeated partnerships. No partner twice unless unavoidable.\nP2 OPPONENT DIVERSITY: Each pair opposes 1-2 times ideally. Minimize 3+ and 4+ repeats.\nP3 PLAYER EXPOSURE: Maximize unique players encountered (partner OR opponent).\nP4 DUPR: |Team1_sum - Team2_sum|. Target \u22640.25. Max 0.40. Avoid >0.50.\n\n==================================================\nC. MANDATORY SELF-CHECK before returning\n==================================================\n\nFor EVERY round verify:\n- No player ID appears more than once\n- Every game has exactly 4 unique players\n- Every player appears exactly once (playing or sitting)\n- Fixed Partners honored exactly\n- Game formats valid\n\nRepair any violation before returning.\n\n==================================================\nD. OUTPUT: JSON only, no other text\n==================================================\n\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"P1\",\"P2\"],\"team2\":[\"P3\",\"P4\"]}],\"sitters\":[]}],\"warnings\":[]}",messages:[{role:'user',content:userPrompt}]})
     });
     var rawText=await resp.text();
     var data;
@@ -1835,6 +1835,54 @@ async function genSchedule(){
     }
     if(endIdx<0)throw new Error('Unbalanced JSON');
     var aiResult=JSON.parse(text.slice(startIdx,endIdx+1));
+    // APP-SIDE VALIDATION
+    function validateAiSchedule(result, players){
+      var errors=[];
+      var playerSet=new Set(players.map(function(p){return 'P'+(players.indexOf(p)+1);}));
+      (result.rounds||[]).forEach(function(rnd){
+        var seen=new Set();
+        var allInRound=new Set();
+        (rnd.matches||[]).forEach(function(m,mi){
+          var allFour=[].concat(m.team1||[]).concat(m.team2||[]);
+          if(allFour.length!==4)errors.push('Round '+rnd.round+' court '+(mi+1)+': game has '+allFour.length+' players instead of 4');
+          var uniqueFour=new Set(allFour);
+          if(uniqueFour.size!==4)errors.push('Round '+rnd.round+' court '+(mi+1)+': duplicate player in game: '+allFour.join(','));
+          allFour.forEach(function(id){
+            if(seen.has(id))errors.push('Round '+rnd.round+': player '+id+' appears on multiple courts');
+            seen.add(id);
+            allInRound.add(id);
+          });
+        });
+        (rnd.sitters||[]).forEach(function(id){
+          if(seen.has(id))errors.push('Round '+rnd.round+': sitter '+id+' also playing');
+          allInRound.add(id);
+        });
+        playerSet.forEach(function(pid){
+          if(!allInRound.has(pid))errors.push('Round '+rnd.round+': player '+pid+' missing');
+        });
+      });
+      return errors;
+    }
+    
+    var validationErrors=validateAiSchedule(aiResult, activePlayers);
+    
+    // If validation fails, try repair (up to 2 attempts)
+    if(validationErrors.length>0){
+      document.getElementById('sched-alert').innerHTML='<div class="alert al-info">🔧 Validating and repairing schedule...</div>';
+      var repairPrompt=userPrompt+'\n\nYour previous schedule failed validation:\n'+validationErrors.join('\n')+'\n\nRepair the schedule fixing these exact errors. Return complete repaired JSON only.';
+      try{
+        var repResp=await fetch('/.netlify/functions/generate-schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'+new_system+',messages:[{role:'user',content:repairPrompt}]})});
+        var repRaw=await repResp.text();
+        var repData=JSON.parse(repRaw);
+        var repText=repData.content&&repData.content[0]&&repData.content[0].text;
+        if(repText){
+          var rs=repText.indexOf('{'),re=-1,rd=0;
+          for(var rci=rs;rci<repText.length;rci++){if(repText[rci]==='{')rd++;else if(repText[rci]==='}'){rd--;if(rd===0){re=rci;break;}}}
+          if(rs>=0&&re>=0){var repResult=JSON.parse(repText.slice(rs,re+1));var repErrors=validateAiSchedule(repResult,activePlayers);if(repErrors.length===0)aiResult=repResult;}
+        }
+      }catch(e){console.warn('Repair attempt failed:',e);}
+    }
+    
     var rounds=aiResult.rounds.map(function(rnd,ri){
       var matches=rnd.matches.map(function(m,mi){
         var t1=m.team1.map(function(id){return findPlayer(id)||{id:id,name:'?',gender:'M',dupr:3.5};});
