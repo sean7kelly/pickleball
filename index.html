@@ -231,7 +231,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
     </div>
     <div style="margin-top:10px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">✏️ Extra AI instructions (optional):</label>
-      <textarea id="ai-extra-prompt" rows="3" onblur="saveAiExtraPrompt()" oninput="saveAiExtraPrompt()" placeholder="e.g. Make sure Sean and Paula play together at least twice. Include at least 3 mixed doubles courts per round." style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);resize:vertical;background:var(--surface);color:var(--text1)"></textarea>
+      <textarea id="ai-extra-prompt" rows="3" placeholder="e.g. Make sure Sean and Paula play together at least twice. Include at least 3 mixed doubles courts per round." style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);resize:vertical;background:var(--surface);color:var(--text1)"></textarea>
     </div>
     <div style="display:none">
       <button class="btn" onclick="window.print()">🖨️ Print</button>
@@ -1745,15 +1745,6 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   }
   return {rounds:allRounds,warnings:pairWarnings};
 }
-function saveAiExtraPrompt(){
-  var el=document.getElementById('ai-extra-prompt');
-  if(el)try{localStorage.setItem('ai_extra_prompt',el.value);}catch(e){}
-}
-function loadAiExtraPrompt(){
-  var el=document.getElementById('ai-extra-prompt');
-  if(el)try{el.value=localStorage.getItem('ai_extra_prompt')||'';}catch(e){}
-}
-
 async function genScheduleStandard(){
   // Sync selected from current RSVPs first
   if(schedule){
@@ -1981,7 +1972,6 @@ async function saveSchedCutoff(){
     schedule.rsvpCutoff=null;
   }
   updateSchedCutoffUI();
-  loadAiExtraPrompt();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 function clearSchedCutoff(){
