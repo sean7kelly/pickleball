@@ -1856,16 +1856,33 @@ async function genSchedule(){
     userPrompt+='\n\nMATCH TYPE TARGETS (per player, across the whole session):';
     if(courtMix.mixed)userPrompt+='\n- Each player should play approximately '+courtMix.mixed+' mixed doubles matches total.';
     if(courtMix.gender)userPrompt+='\n- Each player should play approximately '+courtMix.gender+' gendered (men\'s or women\'s) doubles matches total.';
-    // Calculate how many gendered courts needed per round
-    var totalRounds=ROUNDS;
     var totalPlayers=activePlayers.length;
     var courtsPerRound=Math.floor(totalPlayers/4);
-    if(courtMix.gender&&courtMix.mixed){
-      var genderCourtsPerRound=Math.round((+courtMix.gender/totalRounds)*courtsPerRound);
+    var nM=activePlayers.filter(function(p){return p.gender==='M';}).length;
+    var nF=activePlayers.filter(function(p){return p.gender==='F';}).length;
+    var equalGenders=(nM===nF);
+    if(courtMix.gender||courtMix.mixed){
+      // With equal M/F, gendered courts must come in pairs (1 mens + 1 womens)
+      // Calculate total gendered court-slots needed across session
+      var genderTarget=+courtMix.gender||0;
+      var totalGenderedSlots=Math.round(genderTarget*totalPlayers/4);
+      // Round to nearest valid number (must be even pairs if equal genders)
+      var genderPairs=equalGenders?Math.round(totalGenderedSlots/(2*ROUNDS)):Math.round(totalGenderedSlots/ROUNDS);
+      var genderCourtsPerRound=equalGenders?genderPairs*2:genderPairs;
+      // Clamp to valid range
+      genderCourtsPerRound=Math.max(0,Math.min(genderCourtsPerRound,courtsPerRound));
       var mixedCourtsPerRound=courtsPerRound-genderCourtsPerRound;
-      userPrompt+='\nTo achieve these targets with '+totalPlayers+' players over '+totalRounds+' rounds ('+courtsPerRound+' courts/round):';
-      userPrompt+='\n- Include approximately '+genderCourtsPerRound+' gendered court(s) and '+mixedCourtsPerRound+' mixed court(s) per round.';
-      userPrompt+='\n- You MUST include at least '+Math.max(1,genderCourtsPerRound-1)+' gendered court per round to meet the target.';
+      userPrompt+='\n\nCOURT DISTRIBUTION PER ROUND ('+courtsPerRound+' courts total):';
+      if(equalGenders){
+        userPrompt+='\n- Players are '+nM+'M+'+nF+'F (equal), so gendered courts must be in pairs: X mens + X womens.';
+        userPrompt+='\n- Target: '+genderCourtsPerRound+' gendered courts ('+genderCourtsPerRound/2+' mens + '+genderCourtsPerRound/2+' womens) and '+mixedCourtsPerRound+' mixed courts per round.';
+        if(genderCourtsPerRound===0&&genderTarget>0){
+          userPrompt+='\n- Alternate: use 2 gendered courts every other round to achieve ~'+Math.round(genderTarget*10)/10+' gendered matches per player.';
+        }
+      } else {
+        userPrompt+='\n- Target: '+genderCourtsPerRound+' gendered court(s) and '+mixedCourtsPerRound+' mixed court(s) per round.';
+      }
+      userPrompt+='\n- ROTATE which players are in gendered courts each round — every player should get approximately equal gendered and mixed matches.';
     }
     userPrompt+='\nNever create a competitively unbalanced match (DUPR diff >0.50) just to meet a mix target. But DO honor the mix targets unless it causes a DUPR imbalance.';
   }
