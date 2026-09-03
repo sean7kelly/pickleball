@@ -208,6 +208,15 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm mode-btn" onclick="setMode('gender')">Gender only</button>
         </div>
       </div>
+      <div style="margin-top:10px" id="court-mix-section">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">🤖 AI court mix preference (per round)</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px">
+          <label style="color:var(--text2)">Mixed: <input type="number" id="pref-mixed" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
+          <label style="color:var(--text2)">Men's: <input type="number" id="pref-mens" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
+          <label style="color:var(--text2)">Women's: <input type="number" id="pref-womens" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Leave blank for AI to decide. Numbers are target courts per round.</div>
+      </div>
     </div>
     <div style="margin-bottom:12px">
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Forced pairs <span style="font-weight:400">(keep these players on the same team)</span></label>
@@ -599,7 +608,7 @@ const pKey=(a,b)=>[a,b].sort().join(':');
 function players(){return contacts.filter(c=>c.is_player);}
 function dbToContact(r){return{id:r.id,name:r.name,phone:r.phone||'',invited:r.invited!==false,is_player:r.is_player||false,gender:r.gender||'M',dupr:+r.dupr||3.5,duprUrl:r.dupr_url||null,duprUpdated:r.dupr_updated||null,wins:r.wins||0,losses:r.losses||0,partnerStats:r.partner_stats||{},availDays:r.avail_days||null};}
 function contactToDb(c){return{id:c.id,name:c.name,phone:c.phone||'',invited:c.invited!==false,is_player:c.is_player||false,gender:c.gender||'M',dupr:c.dupr||3.5,dupr_url:c.duprUrl||null,dupr_updated:c.duprUpdated||null,wins:c.wins||0,losses:c.losses||0,partner_stats:c.partnerStats||{},avail_days:c.availDays||null};}
-function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false,rsvpLog:r.rsvp_log||[],aiNotes:r.ai_notes||''};}
+function dbToSchedule(r){return{id:r.id,name:r.name||'Sunday Schedule',date:r.date||'',selected:r.selected||[],matches:r.matches||[],generated:r.generated||false,rounds:r.rounds||10,mode:r.mode||'auto',rsvps:r.rsvps||{},pairs:r.pairs||[],fixedMatches:r.fixed_matches||[],rsvpCutoff:r.rsvp_cutoff||null,waitlistOverride:r.waitlist_override||false,rsvpLog:r.rsvp_log||[],aiNotes:r.ai_notes||'',courtMix:r.court_mix||{}};}
 function slimSchedule(s){
   if(!s)return null;
   return {
@@ -1745,6 +1754,24 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
   }
   return {rounds:allRounds,warnings:pairWarnings};
 }
+function saveCourtMix(){
+  if(!schedule)return;
+  var m=document.getElementById('pref-mixed');
+  var mn=document.getElementById('pref-mens');
+  var w=document.getElementById('pref-womens');
+  schedule.courtMix={mixed:m?m.value:'',mens:mn?mn.value:'',womens:w?w.value:''};
+  try{api('schedules/save',slimSchedule(schedule));}catch(e){}
+}
+function loadCourtMix(){
+  var mix=schedule&&schedule.courtMix||{};
+  var m=document.getElementById('pref-mixed');
+  var mn=document.getElementById('pref-mens');
+  var w=document.getElementById('pref-womens');
+  if(m)m.value=mix.mixed||'';
+  if(mn)mn.value=mix.mens||'';
+  if(w)w.value=mix.womens||'';
+}
+
 function saveAiNotes(){
   if(!schedule)return;
   var el=document.getElementById('ai-extra-prompt');
@@ -1827,6 +1854,14 @@ async function genSchedule(){
       var i1=activePlayers.indexOf(p1)+1,i2=activePlayers.indexOf(p2)+1;
       userPrompt+='P'+i1+'('+p1.name+') + P'+i2+'('+p2.name+') for '+(fp.rounds||1)+' rounds\n';
     });
+  }
+  var courtMix=schedule&&schedule.courtMix||{};
+  if(courtMix.mixed||courtMix.mens||courtMix.womens){
+    userPrompt+='\n\nCOURT MIX PREFERENCE PER ROUND:';
+    if(courtMix.mixed)userPrompt+='\n- Mixed doubles courts: '+courtMix.mixed;
+    if(courtMix.mens)userPrompt+='\n- Men\'s doubles courts: '+courtMix.mens;
+    if(courtMix.womens)userPrompt+='\n- Women\'s doubles courts: '+courtMix.womens;
+    userPrompt+='\n(Honor these counts every round if mathematically possible)';
   }
   userPrompt+='\nReturn ONLY valid JSON: {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
@@ -1985,6 +2020,7 @@ async function saveSchedCutoff(){
   }
   updateSchedCutoffUI();
   loadAiNotes();
+  loadCourtMix();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
 function clearSchedCutoff(){
