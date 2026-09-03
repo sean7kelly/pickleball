@@ -208,13 +208,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm mode-btn" onclick="setMode('gender')">Gender only</button>
         </div>
       </div>
-      <div style="margin-top:10px;display:none" id="court-mix-section">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">🤖 AI match targets (per player, whole session)</label>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px">
-          <label style="color:var(--text2)">Mixed matches: <input type="number" id="pref-mixed" min="0" max="20" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
-          <label style="color:var(--text2)">Gendered matches: <input type="number" id="pref-gender" min="0" max="20" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
-        </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">Target number of mixed and gendered (men's or women's) matches per player over the whole session. Leave blank for AI to decide.</div>
+      <div style="margin-top:10px" id="court-mix-section">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2)">
+          <input type="checkbox" id="pref-include-gender" onchange="saveCourtMix()" style="width:16px;height:16px">
+          Include some men's &amp; women's doubles courts
+        </label>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">AI will naturally distribute gendered courts while still prioritizing partner variety and DUPR balance.</div>
       </div>
     </div>
     <div style="margin-bottom:12px">
@@ -1755,17 +1754,14 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
 }
 function saveCourtMix(){
   if(!schedule)return;
-  var m=document.getElementById('pref-mixed');
-  var g=document.getElementById('pref-gender');
-  schedule.courtMix={mixed:m?m.value:'',gender:g?g.value:''};
+  var cb=document.getElementById('pref-include-gender');
+  schedule.courtMix={includeGender:cb?cb.checked:false};
   try{api('schedules/save',slimSchedule(schedule));}catch(e){}
 }
 function loadCourtMix(){
   var mix=schedule&&schedule.courtMix||{};
-  var m=document.getElementById('pref-mixed');
-  var g=document.getElementById('pref-gender');
-  if(m)m.value=mix.mixed||'';
-  if(g)g.value=mix.gender||'';
+  var cb=document.getElementById('pref-include-gender');
+  if(cb)cb.checked=mix.includeGender||false;
 }
 
 function saveAiNotes(){
@@ -1857,6 +1853,10 @@ async function genSchedule(){
     if(courtMix.mixed)userPrompt+='\n- Each player should play approximately '+courtMix.mixed+' mixed doubles matches total.';
     if(courtMix.gender)userPrompt+='\n- Each player should play approximately '+courtMix.gender+' gendered (men\'s or women\'s) doubles matches total.';
 
+  }
+  var courtMix=schedule&&schedule.courtMix||{};
+  if(courtMix.includeGender){
+    userPrompt+='\n\nCOURT TYPE: Include some men\'s doubles and women\'s doubles courts spread across the session. Do not make every court mixed. Rotate which players are in gendered courts each round. Partner variety and DUPR balance still take priority over court type.';
   }
   userPrompt+='\nReturn ONLY valid JSON with no whitespace or newlines (compact format): {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
