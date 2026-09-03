@@ -1820,13 +1820,13 @@ function injectQualityFeedback(){
   if(lines.length){
     var existing=el.value.trim();
     // Remove previous auto-generated feedback
-    existing=existing.replace(/AVOID THESE REPEATED[\s\S]*?(
+    var avoidIdx=existing.indexOf('AVOID THESE REPEATED');if(avoidIdx>=0)existing=existing.slice(0,avoidIdx).trim();
+    el.value=(existing?existing+'\n\n':'')+lines.join('\n');
 
-|$)/g,'').trim();
-    el.value=(existing?existing+'
 
-':'')+lines.join('
-');
+
+
+
     saveAiNotes();
   }
 }
