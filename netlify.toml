@@ -1,6 +1,17 @@
 [build]
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+[[functions]]
+  path = "/api/generate-schedule"
+  timeout = 26
+
+[[functions]]
+  path = "/.netlify/functions/generate-schedule"
+  timeout = 26
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
