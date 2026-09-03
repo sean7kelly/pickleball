@@ -17,9 +17,10 @@ exports.handler = async function(event) {
   
   const { system, messages, max_tokens } = body;
   
+  // Use a shorter, more focused prompt to reduce response time
   const postData = JSON.stringify({
-    model: 'claude-sonnet-4-6',
-    max_tokens: max_tokens || 4000,
+    model: 'claude-haiku-4-5-20251001',  // Much faster than Sonnet
+    max_tokens: max_tokens || 3000,
     system,
     messages
   });
@@ -44,6 +45,10 @@ exports.handler = async function(event) {
     });
     req.on('error', (e) => {
       resolve({statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:e.message})});
+    });
+    req.setTimeout(9000, () => {
+      req.destroy();
+      resolve({statusCode:504, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Inactivity Timeout'})});
     });
     req.write(postData);
     req.end();
