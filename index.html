@@ -1981,14 +1981,27 @@ async function genScheduleSilent(activePlayers){
 const typeLabel={mixed:'Mixed doubles',mens:"Men's doubles",womens:"Women's doubles"};
 const typeBadge={mixed:'bg-green',mens:'bg-blue',womens:'bg-pink'};
 function getMatchType(m){
-  // Always derive type from actual player genders for reliability
   var all=(m.team1||[]).concat(m.team2||[]);
-  var males=all.filter(function(p){return p&&p.gender==='M';}).length;
-  var females=all.filter(function(p){return p&&p.gender==='F';}).length;
-  if(males===4)return 'mens';
-  if(females===4)return 'womens';
-  if(males>=1&&females>=1)return 'mixed';
-  return m.type||'mixed'; // fallback
+  var males=all.filter(function(p){return p&&p.gender==='M';});
+  var females=all.filter(function(p){return p&&p.gender==='F';});
+  if(males.length===4)return 'mens';
+  if(females.length===4)return 'womens';
+  if(males.length>=1&&females.length>=1){
+    // Check if teams are valid mixed (1M+1F each)
+    var t1m=( m.team1||[]).filter(function(p){return p&&p.gender==='M';}).length;
+    var t1f=(m.team1||[]).filter(function(p){return p&&p.gender==='F';}).length;
+    var t2m=(m.team2||[]).filter(function(p){return p&&p.gender==='M';}).length;
+    var t2f=(m.team2||[]).filter(function(p){return p&&p.gender==='F';}).length;
+    if(t1m!==1||t1f!==1||t2m!==1||t2f!==1){
+      // Fix teams: put 1M+1F on each team
+      if(males.length>=2&&females.length>=2){
+        m.team1=[males[0],females[0]];
+        m.team2=[males[1],females[1]];
+      }
+    }
+    return 'mixed';
+  }
+  return m.type||'mixed';
 }
 function renderSchedule(){
   const out=document.getElementById('sched-out');
