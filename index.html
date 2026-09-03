@@ -1877,7 +1877,7 @@ async function genSchedule(){
     if(data.error)throw new Error('API error: '+(data.error.message||JSON.stringify(data.error)));
     if(data.type==='error')throw new Error('API error: '+((data.error&&data.error.message)||data.type));
     var text=data.content&&data.content[0]&&data.content[0].text;
-    if(!text)throw new Error('No text in response');
+    if(!text)throw new Error('No text. Full response: '+JSON.stringify(data).slice(0,300));
     // Extract JSON using balanced brace matching
     var startIdx=text.indexOf('{');
     if(startIdx<0)throw new Error('No JSON in: '+text.slice(0,200));
