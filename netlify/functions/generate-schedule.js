@@ -1,7 +1,6 @@
 const https = require('https');
 
 exports.handler = async function(event, context) {
-  // Extend lambda timeout
   context.callbackWaitsForEmptyEventLoop = false;
   
   if(event.httpMethod === 'OPTIONS') {
@@ -21,7 +20,7 @@ exports.handler = async function(event, context) {
   const { system, messages, max_tokens } = body;
   
   const postData = JSON.stringify({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: max_tokens || 3000,
     system,
     messages
@@ -48,7 +47,7 @@ exports.handler = async function(event, context) {
     });
     req.on('timeout', () => {
       req.destroy();
-      resolve({statusCode:504, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Request timed out - try fewer rounds or Standard generator'})});
+      resolve({statusCode:504, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Timeout — try fewer rounds or use Standard generator'})});
     });
     req.on('error', (e) => {
       resolve({statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:e.message})});
