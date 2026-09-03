@@ -209,13 +209,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
         </div>
       </div>
       <div style="margin-top:10px" id="court-mix-section">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">🤖 AI court mix preference (per round)</label>
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">🤖 AI match targets (per player, whole session)</label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px">
-          <label style="color:var(--text2)">Mixed: <input type="number" id="pref-mixed" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
-          <label style="color:var(--text2)">Men's: <input type="number" id="pref-mens" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
-          <label style="color:var(--text2)">Women's: <input type="number" id="pref-womens" min="0" max="10" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
+          <label style="color:var(--text2)">Mixed matches: <input type="number" id="pref-mixed" min="0" max="20" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
+          <label style="color:var(--text2)">Gendered matches: <input type="number" id="pref-gender" min="0" max="20" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
         </div>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">Leave blank for AI to decide. Numbers are target courts per round.</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Target number of mixed and gendered (men's or women's) matches per player over the whole session. Leave blank for AI to decide.</div>
       </div>
     </div>
     <div style="margin-bottom:12px">
@@ -1757,19 +1756,16 @@ function buildScheduleRounds(activePlayers,ROUNDS,mode,pairs,fixedMatches){
 function saveCourtMix(){
   if(!schedule)return;
   var m=document.getElementById('pref-mixed');
-  var mn=document.getElementById('pref-mens');
-  var w=document.getElementById('pref-womens');
-  schedule.courtMix={mixed:m?m.value:'',mens:mn?mn.value:'',womens:w?w.value:''};
+  var g=document.getElementById('pref-gender');
+  schedule.courtMix={mixed:m?m.value:'',gender:g?g.value:''};
   try{api('schedules/save',slimSchedule(schedule));}catch(e){}
 }
 function loadCourtMix(){
   var mix=schedule&&schedule.courtMix||{};
   var m=document.getElementById('pref-mixed');
-  var mn=document.getElementById('pref-mens');
-  var w=document.getElementById('pref-womens');
+  var g=document.getElementById('pref-gender');
   if(m)m.value=mix.mixed||'';
-  if(mn)mn.value=mix.mens||'';
-  if(w)w.value=mix.womens||'';
+  if(g)g.value=mix.gender||'';
 }
 
 function saveAiNotes(){
@@ -1856,12 +1852,11 @@ async function genSchedule(){
     });
   }
   var courtMix=schedule&&schedule.courtMix||{};
-  if(courtMix.mixed||courtMix.mens||courtMix.womens){
-    userPrompt+='\n\nCOURT MIX PREFERENCE PER ROUND:';
-    if(courtMix.mixed)userPrompt+='\n- Mixed doubles courts: '+courtMix.mixed;
-    if(courtMix.mens)userPrompt+='\n- Men\'s doubles courts: '+courtMix.mens;
-    if(courtMix.womens)userPrompt+='\n- Women\'s doubles courts: '+courtMix.womens;
-    userPrompt+='\n(Honor these counts every round if mathematically possible)';
+  if(courtMix.mixed||courtMix.gender){
+    userPrompt+='\n\nMATCH TYPE TARGETS (per player, across the whole session):';
+    if(courtMix.mixed)userPrompt+='\n- Each player should play approximately '+courtMix.mixed+' mixed doubles matches total.';
+    if(courtMix.gender)userPrompt+='\n- Each player should play approximately '+courtMix.gender+' gendered (men\'s or women\'s) doubles matches total.';
+    userPrompt+='\nDistribute match types across rounds to hit these per-player totals as evenly as possible.';
   }
   userPrompt+='\nReturn ONLY valid JSON: {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
