@@ -1924,7 +1924,7 @@ async function genSchedule(){
       document.getElementById('sched-alert').innerHTML='<div class="alert al-info">🔧 Validating and repairing schedule...</div>';
       var repairPrompt=userPrompt+'\n\nYour previous schedule failed validation:\n'+validationErrors.join('\n')+'\n\nRepair the schedule fixing these exact errors. Return complete repaired JSON only.';
       try{
-        var repResp=await fetch('/.netlify/functions/generate-schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_tokens:2500,system:'+new_system+',messages:[{role:'user',content:repairPrompt}]})});
+        var repResp=await fetch('https://kbmriwhsmkifvwcxbehy.supabase.co/functions/v1/super-handler',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtibXJpd2hzbWtpZnZ3Y3hiZWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjk1NTcsImV4cCI6MjA5Mzg0NTU1N30.XdP0dK981z3JxuqtdFqwPQ98CAaGFwEJ7EXL8AQygOQ'},body:JSON.stringify({max_tokens:2500,system:'+new_system+',messages:[{role:'user',content:repairPrompt}]})});
         var repRaw=await repResp.text();
         var repData=JSON.parse(repRaw);
         var repText=repData.content&&repData.content[0]&&repData.content[0].text;
