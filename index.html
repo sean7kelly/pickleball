@@ -1869,7 +1869,7 @@ async function genSchedule(){
     }
     userPrompt+='\nNever create a competitively unbalanced match (DUPR diff >0.50) just to meet a mix target. But DO honor the mix targets unless it causes a DUPR imbalance.';
   }
-  userPrompt+='\nReturn ONLY valid JSON: {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
+  userPrompt+='\nReturn ONLY valid JSON with no whitespace or newlines (compact format): {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
   if(extraPrompt&&extraPrompt.value.trim()){
     userPrompt+='\n\nADDITIONAL INSTRUCTIONS FROM ORGANIZER:\n'+extraPrompt.value.trim();
