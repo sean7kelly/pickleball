@@ -1,6 +1,9 @@
 const https = require('https');
 
-exports.handler = async function(event) {
+exports.handler = async function(event, context) {
+  // Extend lambda timeout
+  context.callbackWaitsForEmptyEventLoop = false;
+  
   if(event.httpMethod === 'OPTIONS') {
     return {statusCode:200, headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST'}};
   }
@@ -17,9 +20,8 @@ exports.handler = async function(event) {
   
   const { system, messages, max_tokens } = body;
   
-  // Use a shorter, more focused prompt to reduce response time
   const postData = JSON.stringify({
-    model: 'claude-haiku-4-5-20251001',  // Much faster than Sonnet
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: max_tokens || 3000,
     system,
     messages
@@ -35,7 +37,8 @@ exports.handler = async function(event) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
         'Content-Length': Buffer.byteLength(postData)
-      }
+      },
+      timeout: 25000
     }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -43,12 +46,12 @@ exports.handler = async function(event) {
         resolve({statusCode:200, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:data});
       });
     });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({statusCode:504, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Request timed out - try fewer rounds or Standard generator'})});
+    });
     req.on('error', (e) => {
       resolve({statusCode:500, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:e.message})});
-    });
-    req.setTimeout(9000, () => {
-      req.destroy();
-      resolve({statusCode:504, headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'Inactivity Timeout'})});
     });
     req.write(postData);
     req.end();
