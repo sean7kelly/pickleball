@@ -203,12 +203,12 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">Match type</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-sm mode-btn" onclick="setMode('auto')">Auto</button>
+          <button class="btn btn-sm mode-btn" onclick="setMode('auto')">Combo</button>
           <button class="btn btn-sm mode-btn" onclick="setMode('mixed')">Mixed only</button>
           <button class="btn btn-sm mode-btn" onclick="setMode('gender')">Gender only</button>
         </div>
       </div>
-      <div style="margin-top:10px" id="court-mix-section">
+      <div style="margin-top:10px;display:none" id="court-mix-section">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2)">
           <input type="checkbox" id="pref-include-gender" onchange="saveCourtMix()" style="width:16px;height:16px">
           Include some men's &amp; women's doubles courts
