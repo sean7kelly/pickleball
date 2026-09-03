@@ -1945,6 +1945,39 @@ async function genSchedule(){
       var sitters=(rnd.sitters||[]).map(function(id){return findPlayer(id)||null;}).filter(Boolean);
       return {round:rnd.round||ri+1,matches:matches,sitters:sitters};
     });
+    // App-side DUPR enforcement: try all 3 team splits for each match
+    rounds.forEach(function(rnd){
+      rnd.matches.forEach(function(m){
+        var p=m.team1.concat(m.team2);
+        if(p.length!==4)return;
+        // For mixed, splits must maintain 1M+1F per team
+        var isMixed=(getMatchType(m)==='mixed');
+        var males=p.filter(function(x){return x.gender==='M';});
+        var females=p.filter(function(x){return x.gender==='F';});
+        var splits=[];
+        if(isMixed&&males.length===2&&females.length===2){
+          // Only 2 valid mixed splits
+          splits=[
+            {t1:[males[0],females[0]],t2:[males[1],females[1]]},
+            {t1:[males[0],females[1]],t2:[males[1],females[0]]}
+          ];
+        } else {
+          // All 3 splits
+          splits=[
+            {t1:[p[0],p[1]],t2:[p[2],p[3]]},
+            {t1:[p[0],p[2]],t2:[p[1],p[3]]},
+            {t1:[p[0],p[3]],t2:[p[1],p[2]]}
+          ];
+        }
+        var best=splits.reduce(function(a,b){
+          var da=Math.abs((a.t1[0].dupr+a.t1[1].dupr)-(a.t2[0].dupr+a.t2[1].dupr));
+          var db=Math.abs((b.t1[0].dupr+b.t1[1].dupr)-(b.t2[0].dupr+b.t2[1].dupr));
+          return db<da?b:a;
+        });
+        m.team1=best.t1;
+        m.team2=best.t2;
+      });
+    });
     schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
