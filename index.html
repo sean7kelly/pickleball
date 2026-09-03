@@ -208,7 +208,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
           <button class="btn btn-sm mode-btn" onclick="setMode('gender')">Gender only</button>
         </div>
       </div>
-      <div style="margin-top:10px" id="court-mix-section">
+      <div style="margin-top:10px;display:none" id="court-mix-section">
         <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">🤖 AI match targets (per player, whole session)</label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px">
           <label style="color:var(--text2)">Mixed matches: <input type="number" id="pref-mixed" min="0" max="20" value="" placeholder="auto" style="width:52px;height:28px;font-size:12px;text-align:center" onchange="saveCourtMix()"></label>
@@ -1856,14 +1856,7 @@ async function genSchedule(){
     userPrompt+='\n\nMATCH TYPE TARGETS (per player, across the whole session):';
     if(courtMix.mixed)userPrompt+='\n- Each player should play approximately '+courtMix.mixed+' mixed doubles matches total.';
     if(courtMix.gender)userPrompt+='\n- Each player should play approximately '+courtMix.gender+' gendered (men\'s or women\'s) doubles matches total.';
-    if(courtMix.gender||courtMix.mixed){
-      userPrompt+='\n\nMATCH TYPE TARGETS (per player across full session):';
-      if(courtMix.gender)userPrompt+='\n- Approximately '+courtMix.gender+' gendered (mens or womens) doubles matches per player.';
-      if(courtMix.mixed)userPrompt+='\n- Approximately '+courtMix.mixed+' mixed doubles matches per player.';
-      userPrompt+='\n- Spread gendered and mixed courts across all rounds — do NOT use the same players for gendered courts every round.';
-      userPrompt+='\n- PARTNER VARIETY remains the top priority — never pair the same two players more than once just to fill a court type target.';
-      userPrompt+='\n- These are soft targets. Skip them if honoring them would cause repeated partnerships or DUPR imbalance >0.50.';
-    }
+
   }
   userPrompt+='\nReturn ONLY valid JSON with no whitespace or newlines (compact format): {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
