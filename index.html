@@ -1836,7 +1836,8 @@ async function genSchedule(){
   activePlayers.forEach(function(p,i){
     userPrompt+='P'+(i+1)+': '+p.name+' | '+p.gender+' | DUPR '+(p.dupr||3.5)+'\n';
   });
-  userPrompt+='\nMODE: '+mode;
+  var modeLabel=mode==='mixed'?'MIXED DOUBLES ONLY — every court must be mixed doubles (1M+1F per team). No mens or womens courts.':mode==='gender'?'GENDER DOUBLES ONLY — every court must be mens doubles or womens doubles. No mixed courts.':'COMBO — include both mixed doubles AND gendered (mens/womens) doubles courts. Roughly half the courts should be gendered and half mixed each round. Do NOT make all courts mixed.';
+  userPrompt+='\nCOURT TYPE: '+modeLabel;
   var fp2=(usePairs||[]).filter(function(fp){return activePlayers.find(function(p){return p.id===fp.p1||p.id===+fp.p1;})&&activePlayers.find(function(p){return p.id===fp.p2||p.id===+fp.p2;});});
   if(fp2.length){
     userPrompt+='\n\nFORCED PAIRS:\n';
