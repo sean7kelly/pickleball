@@ -1838,7 +1838,7 @@ async function genSchedule(){
   activePlayers.forEach(function(p,i){
     userPrompt+='P'+(i+1)+': '+p.name+' | '+p.gender+' | DUPR '+(p.dupr||3.5)+'\n';
   });
-  var modeLabel=mode==='mixed'?'MIXED DOUBLES ONLY — every court must be mixed doubles (1M+1F per team). No mens or womens courts.':mode==='gender'?'GENDER DOUBLES ONLY — every court must be mens doubles or womens doubles. No mixed courts.':'COMBO — include a mix of mixed doubles and gendered (mens/womens) doubles courts. Target 25-50% of all courts as gendered (1-3 courts per round out of 6), the rest mixed. Spread gendered courts evenly across all rounds. Do NOT make all courts mixed, but most courts should be mixed.';
+  var modeLabel=mode==='mixed'?'MIXED DOUBLES ONLY — every court must be mixed doubles (1M+1F per team). No mens or womens courts.':mode==='gender'?'GENDER DOUBLES ONLY — every court must be mens doubles or womens doubles. No mixed courts.':'MIXED DOUBLES — every court must be mixed doubles (1M+1F per team). This maximizes partner variety across all players.';
   userPrompt+='\nCOURT TYPE: '+modeLabel;
   var fp2=(usePairs||[]).filter(function(fp){return activePlayers.find(function(p){return p.id===fp.p1||p.id===+fp.p1;})&&activePlayers.find(function(p){return p.id===fp.p2||p.id===+fp.p2;});});
   if(fp2.length){
@@ -2968,4 +2968,39 @@ init();
 </div>
 
 </body>
-</html>
+</html>    // Enforce forced pairs exactly N times
+    if(usePairs&&usePairs.length){
+      usePairs.forEach(function(fp){
+        var maxRounds=fp.rounds||1;
+        var p1id=String(fp.p1), p2id=String(fp.p2);
+        // Find all rounds where this pair appears as partners
+        var pairMatches=[];
+        rounds.forEach(function(rnd,ri){
+          rnd.matches.forEach(function(m){
+            var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
+            var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
+            if((t1ids.includes(p1id)&&t1ids.includes(p2id))||(t2ids.includes(p1id)&&t2ids.includes(p2id))){
+              pairMatches.push({ri:ri,m:m,onT1:t1ids.includes(p1id)&&t1ids.includes(p2id)});
+            }
+          });
+        });
+        // Break up excess occurrences by swapping one player cross-team
+        if(pairMatches.length>maxRounds){
+          pairMatches.slice(maxRounds).forEach(function(entry){
+            var m=entry.m;
+            var myTeam=entry.onT1?m.team1:m.team2;
+            var otherTeam=entry.onT1?m.team2:m.team1;
+            // Swap p2 with first player on other team (simple break)
+            var p2Idx=myTeam.findIndex(function(p){return String(p.id)===p2id;});
+            if(p2Idx>=0&&otherTeam.length>0){
+              var tmp=myTeam[p2Idx];
+              myTeam[p2Idx]=otherTeam[0];
+              otherTeam[0]=tmp;
+              m.team1=entry.onT1?myTeam:otherTeam;
+              m.team2=entry.onT1?otherTeam:myTeam;
+            }
+          });
+        }
+      });
+    }
+    
