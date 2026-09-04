@@ -2023,6 +2023,48 @@ async function genSchedule(){
         m.team2=current.t2;
       });
     });
+    // App-side partnership enforcement: break up any repeated partnerships
+    var usedPartnerships={};
+    rounds.forEach(function(rnd){
+      rnd.matches.forEach(function(m){
+        [[m.team1,m.team2],[m.team2,m.team1]].forEach(function(teams){
+          var team=teams[0], other=teams[1];
+          if(team.length!==2)return;
+          var pk=team.map(function(p){return p.id;}).sort().join('_');
+          if(usedPartnerships[pk]){
+            // This partnership was already used - try to swap one player with other team
+            // Find the best swap that doesn't create another repeat
+            var isMixed=(getMatchType(m)==='mixed');
+            var swapped=false;
+            for(var i=0;i<team.length&&!swapped;i++){
+              for(var j=0;j<other.length&&!swapped;j++){
+                // Skip if swap would violate mixed format
+                if(isMixed){
+                  var newTeam=[team[i===0?1:0],other[j]];
+                  var newOther=[other[j===0?1:0],team[i]];
+                  var gT=newTeam.filter(function(p){return p.gender==='M';}).length;
+                  var gO=newOther.filter(function(p){return p.gender==='M';}).length;
+                  if(gT!==1||gO!==1)continue;
+                }
+                var newPk1=[team[i===0?1:0].id,other[j].id].sort().join('_');
+                var newPk2=[other[j===0?1:0].id,team[i].id].sort().join('_');
+                if(!usedPartnerships[newPk1]&&!usedPartnerships[newPk2]){
+                  // Valid swap - do it
+                  var tmp=team[i];
+                  team[i]=other[j];
+                  other[j]=tmp;
+                  m.team1=teams[0];
+                  m.team2=teams[1];
+                  swapped=true;
+                }
+              }
+            }
+          }
+          // Record this partnership
+          usedPartnerships[pk]=true;
+        });
+      });
+    });
     schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
