@@ -1860,6 +1860,7 @@ async function genSchedule(){
   if(courtMix.includeGender){
     userPrompt+='\n\nCOURT TYPE: Include some men\'s doubles and women\'s doubles courts spread across the session. Do not make every court mixed. Rotate which players are in gendered courts each round. Partner variety and DUPR balance still take priority over court type.';
   }
+  userPrompt+='\n\nBEFORE FINALIZING: Review every round and list all partnerships used. If any two players are partners more than once, fix it by swapping with their opponents. Every player has at least 11 different possible partners — there is no mathematical reason for any repeat.';
   userPrompt+='\nReturn ONLY valid JSON with no whitespace or newlines (compact format): {"rounds":[{"round":1,"matches":[{"type":"mixed","team1":["P1","P2"],"team2":["P3","P4"]}],"sitters":[]}],"warnings":[]}';
   var extraPrompt=document.getElementById('ai-extra-prompt');
   if(extraPrompt&&extraPrompt.value.trim()){
