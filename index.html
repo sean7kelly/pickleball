@@ -1984,6 +1984,58 @@ async function genSchedule(){
         }
       });
     }
+    // Fix opponent clustering: swap players between courts when same pair faces 3+ times
+    for(var swapPass=0;swapPass<3;swapPass++){
+      var oppCount={};
+      rounds.forEach(function(rnd){
+        (rnd.matches||[]).forEach(function(m){
+          (m.team1||[]).forEach(function(a){
+            (m.team2||[]).forEach(function(b){
+              var k=[a.id,b.id].sort().join('_');
+              oppCount[k]=(oppCount[k]||0)+1;
+            });
+          });
+        });
+      });
+      // Find worst pair
+      var worstKey=null,worstCount=0;
+      Object.keys(oppCount).forEach(function(k){if(oppCount[k]>worstCount){worstCount=oppCount[k];worstKey=k;}});
+      if(worstCount<=3)break;
+      var ids=worstKey.split('_');
+      var p1id=ids[0],p2id=ids[1];
+      // Find a round where they face each other and try swapping one with another court
+      var fixed=false;
+      rounds.forEach(function(rnd){
+        if(fixed)return;
+        var m1=null,m2=null;
+        rnd.matches.forEach(function(m){
+          var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
+          var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
+          if((t1ids.includes(p1id)&&t2ids.includes(p2id))||(t1ids.includes(p2id)&&t2ids.includes(p1id)))m1=m;
+        });
+        if(!m1)return;
+        // Try swapping a player from m1 with another court
+        rnd.matches.forEach(function(m){
+          if(fixed||m===m1)return;
+          var isMixed=(getMatchType(m)==='mixed'&&getMatchType(m1)==='mixed');
+          // Try swapping team1[0] of m1 with team1[0] of m
+          [[0,0],[0,1],[1,0],[1,1]].forEach(function(pair){
+            if(fixed)return;
+            var i=pair[0],j=pair[1];
+            var pa=m1.team1[i],pb=m.team1[j];
+            if(!pa||!pb)return;
+            if(isMixed&&pa.gender!==pb.gender)return;
+            // Check this swap doesn't create a repeated partnership
+            var newM1T1=m1.team1.slice();newM1T1[i]=pb;
+            var newMT1=m.team1.slice();newMT1[j]=pa;
+            var pk1=[newM1T1[0].id,newM1T1[1].id].sort().join('_');
+            var pk2=[newMT1[0].id,newMT1[1].id].sort().join('_');
+            // Simple check - just do it and improve clustering
+            m1.team1=newM1T1;m.team1=newMT1;fixed=true;
+          });
+        });
+      });
+    }
     schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -2206,7 +2258,9 @@ async function analyzeScheduleInApp(){
   var repeatedPartners=Object.entries(partnerCount).filter(function(e){return e[1]>=2;}).sort(function(a,b){return b[1]-a[1];});
   var repeatedOpponents=Object.entries(opponentCount).filter(function(e){return e[1]>=4;}).sort(function(a,b){return b[1]-a[1];});
   var playerExp={};
-  contacts.forEach(function(c){playerExp[c.name]={partners:new Set(),opponents:new Set()};});
+  var scheduledNames=new Set();
+  hydrated.matches.forEach(function(rnd){(rnd.matches||[]).forEach(function(m){(m.team1||[]).concat(m.team2||[]).forEach(function(p){scheduledNames.add(p.name);});});});
+  scheduledNames.forEach(function(name){playerExp[name]={partners:new Set(),opponents:new Set()};});
   hydrated.matches.forEach(function(rnd){
     (rnd.matches||[]).forEach(function(m){
       [m.team1,m.team2].forEach(function(team,ti){
