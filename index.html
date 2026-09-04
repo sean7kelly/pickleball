@@ -240,9 +240,9 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px">✏️ Extra AI instructions (optional):</label>
       <textarea id="ai-extra-prompt" rows="3" onchange="saveAiNotes()" onblur="saveAiNotes()" placeholder="e.g. Make sure Sean and Paula play together at least twice. Include at least 3 mixed doubles courts per round." style="width:100%;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);resize:vertical;background:var(--surface);color:var(--text1)"></textarea>
     </div>
-    <div style="display:none">
+    <div id="sched-tools-bar" style="display:none;gap:8px;flex-wrap:wrap">
       <button class="btn" onclick="window.print()">🖨️ Print</button>
-      <button class="btn" onclick="copyScheduleText()" id="copy-text-btn" style="display:none">📄 Copy Text</button>
+      <button class="btn" onclick="copyScheduleText()" id="copy-text-btn">📄 Copy Text</button>
       <button class="btn" onclick="shareSchedule()">📤 Share</button>
       <button class="btn btn-danger btn-sm" onclick="resetSchedule()">🗑️ Clear</button>
     </div>
@@ -2149,8 +2149,8 @@ async function saveSchedCutoff(){
   }
   updateSchedCutoffUI();
   loadAiNotes();
-  var copyBtn=document.getElementById('copy-text-btn');
-  if(copyBtn)copyBtn.style.display=adminUnlocked?'inline-flex':'none';
+  var toolsBar=document.getElementById('sched-tools-bar');
+  if(toolsBar)toolsBar.style.display=adminUnlocked&&schedule?'flex':'none';
   loadCourtMix();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
