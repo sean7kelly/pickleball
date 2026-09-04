@@ -1948,9 +1948,10 @@ async function genSchedule(){
       var sitters=(rnd.sitters||[]).map(function(id){return findPlayer(id)||null;}).filter(Boolean);
       return {round:rnd.round||ri+1,matches:matches,sitters:sitters};
     });
-    // Enforce forced pairs exactly N times
-    if(usePairs&&usePairs.length){
-      usePairs.forEach(function(fp){
+    // Enforce forced pairs exactly N times (always use schedule.pairs, not usePairs)
+    var forcedPairsForEnforce=schedule.pairs||[];
+    if(forcedPairsForEnforce.length){
+      forcedPairsForEnforce.forEach(function(fp){
         var maxRounds=fp.rounds||1;
         var p1id=String(fp.p1), p2id=String(fp.p2);
         // Find all rounds where this pair appears as partners
