@@ -1948,7 +1948,42 @@ async function genSchedule(){
       var sitters=(rnd.sitters||[]).map(function(id){return findPlayer(id)||null;}).filter(Boolean);
       return {round:rnd.round||ri+1,matches:matches,sitters:sitters};
     });
-        schedule.matches=rounds;
+    // Enforce forced pairs exactly N times
+    if(usePairs&&usePairs.length){
+      usePairs.forEach(function(fp){
+        var maxRounds=fp.rounds||1;
+        var p1id=String(fp.p1), p2id=String(fp.p2);
+        // Find all rounds where this pair appears as partners
+        var pairMatches=[];
+        rounds.forEach(function(rnd,ri){
+          rnd.matches.forEach(function(m){
+            var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
+            var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
+            if((t1ids.includes(p1id)&&t1ids.includes(p2id))||(t2ids.includes(p1id)&&t2ids.includes(p2id))){
+              pairMatches.push({ri:ri,m:m,onT1:t1ids.includes(p1id)&&t1ids.includes(p2id)});
+            }
+          });
+        });
+        // Break up excess occurrences by swapping one player cross-team
+        if(pairMatches.length>maxRounds){
+          pairMatches.slice(maxRounds).forEach(function(entry){
+            var m=entry.m;
+            var myTeam=entry.onT1?m.team1:m.team2;
+            var otherTeam=entry.onT1?m.team2:m.team1;
+            // Swap p2 with first player on other team (simple break)
+            var p2Idx=myTeam.findIndex(function(p){return String(p.id)===p2id;});
+            if(p2Idx>=0&&otherTeam.length>0){
+              var tmp=myTeam[p2Idx];
+              myTeam[p2Idx]=otherTeam[0];
+              otherTeam[0]=tmp;
+              m.team1=entry.onT1?myTeam:otherTeam;
+              m.team2=entry.onT1?otherTeam:myTeam;
+            }
+          });
+        }
+      });
+    }
+    schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     renderSchedule();renderPairs();
@@ -2859,39 +2894,4 @@ init();
 </div>
 
 </body>
-</html>    // Enforce forced pairs exactly N times
-    if(usePairs&&usePairs.length){
-      usePairs.forEach(function(fp){
-        var maxRounds=fp.rounds||1;
-        var p1id=String(fp.p1), p2id=String(fp.p2);
-        // Find all rounds where this pair appears as partners
-        var pairMatches=[];
-        rounds.forEach(function(rnd,ri){
-          rnd.matches.forEach(function(m){
-            var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
-            var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
-            if((t1ids.includes(p1id)&&t1ids.includes(p2id))||(t2ids.includes(p1id)&&t2ids.includes(p2id))){
-              pairMatches.push({ri:ri,m:m,onT1:t1ids.includes(p1id)&&t1ids.includes(p2id)});
-            }
-          });
-        });
-        // Break up excess occurrences by swapping one player cross-team
-        if(pairMatches.length>maxRounds){
-          pairMatches.slice(maxRounds).forEach(function(entry){
-            var m=entry.m;
-            var myTeam=entry.onT1?m.team1:m.team2;
-            var otherTeam=entry.onT1?m.team2:m.team1;
-            // Swap p2 with first player on other team (simple break)
-            var p2Idx=myTeam.findIndex(function(p){return String(p.id)===p2id;});
-            if(p2Idx>=0&&otherTeam.length>0){
-              var tmp=myTeam[p2Idx];
-              myTeam[p2Idx]=otherTeam[0];
-              otherTeam[0]=tmp;
-              m.team1=entry.onT1?myTeam:otherTeam;
-              m.team2=entry.onT1?otherTeam:myTeam;
-            }
-          });
-        }
-      });
-    }
-    
+</html>
