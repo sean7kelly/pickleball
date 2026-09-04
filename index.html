@@ -2025,44 +2025,56 @@ async function genSchedule(){
     });
     // App-side partnership enforcement: break up any repeated partnerships
     var usedPartnerships={};
+    function pkOf(a,b){return [a.id,b.id].sort().join('_');}
     rounds.forEach(function(rnd){
       rnd.matches.forEach(function(m){
-        [[m.team1,m.team2],[m.team2,m.team1]].forEach(function(teams){
-          var team=teams[0], other=teams[1];
-          if(team.length!==2)return;
-          var pk=team.map(function(p){return p.id;}).sort().join('_');
-          if(usedPartnerships[pk]){
-            // This partnership was already used - try to swap one player with other team
-            // Find the best swap that doesn't create another repeat
-            var isMixed=(getMatchType(m)==='mixed');
-            var swapped=false;
-            for(var i=0;i<team.length&&!swapped;i++){
-              for(var j=0;j<other.length&&!swapped;j++){
-                // Skip if swap would violate mixed format
-                if(isMixed){
-                  var newTeam=[team[i===0?1:0],other[j]];
-                  var newOther=[other[j===0?1:0],team[i]];
-                  var gT=newTeam.filter(function(p){return p.gender==='M';}).length;
-                  var gO=newOther.filter(function(p){return p.gender==='M';}).length;
-                  if(gT!==1||gO!==1)continue;
-                }
-                var newPk1=[team[i===0?1:0].id,other[j].id].sort().join('_');
-                var newPk2=[other[j===0?1:0].id,team[i].id].sort().join('_');
-                if(!usedPartnerships[newPk1]&&!usedPartnerships[newPk2]){
-                  // Valid swap - do it
-                  var tmp=team[i];
-                  team[i]=other[j];
-                  other[j]=tmp;
-                  m.team1=teams[0];
-                  m.team2=teams[1];
-                  swapped=true;
-                }
-              }
+        var t1=m.team1, t2=m.team2;
+        if(t1.length!==2||t2.length!==2)return;
+        var isMixed=(getMatchType(m)==='mixed');
+        // Check team1 partnership
+        var pk1=pkOf(t1[0],t1[1]);
+        if(usedPartnerships[pk1]){
+          // Try swapping t1[0] with t2[0] or t2[1]
+          var swapped=false;
+          [0,1].forEach(function(j){
+            if(swapped)return;
+            var newT1=[t1[1],t2[j]];
+            var newT2=[t1[0],t2[1-j]];
+            if(isMixed){
+              var mT1=newT1.filter(function(p){return p.gender==='M';}).length;
+              var mT2=newT2.filter(function(p){return p.gender==='M';}).length;
+              if(mT1!==1||mT2!==1)return;
             }
-          }
-          // Record this partnership
-          usedPartnerships[pk]=true;
-        });
+            var npk1=pkOf(newT1[0],newT1[1]);
+            var npk2=pkOf(newT2[0],newT2[1]);
+            if(!usedPartnerships[npk1]&&!usedPartnerships[npk2]){
+              m.team1=newT1;m.team2=newT2;t1=newT1;t2=newT2;swapped=true;
+            }
+          });
+        }
+        // Check team2 partnership
+        var pk2=pkOf(t2[0],t2[1]);
+        if(usedPartnerships[pk2]){
+          var swapped2=false;
+          [0,1].forEach(function(j){
+            if(swapped2)return;
+            var newT1=[t2[1],t1[j]];
+            var newT2=[t2[0],t1[1-j]];
+            if(isMixed){
+              var mT1=newT1.filter(function(p){return p.gender==='M';}).length;
+              var mT2=newT2.filter(function(p){return p.gender==='M';}).length;
+              if(mT1!==1||mT2!==1)return;
+            }
+            var npk1=pkOf(newT1[0],newT1[1]);
+            var npk2=pkOf(newT2[0],newT2[1]);
+            if(!usedPartnerships[npk1]&&!usedPartnerships[npk2]){
+              m.team1=newT1;m.team2=newT2;t1=newT1;t2=newT2;swapped2=true;
+            }
+          });
+        }
+        // Record both partnerships
+        usedPartnerships[pkOf(m.team1[0],m.team1[1])]=true;
+        usedPartnerships[pkOf(m.team2[0],m.team2[1])]=true;
       });
     });
     schedule.matches=rounds;
