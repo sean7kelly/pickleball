@@ -1984,7 +1984,7 @@ async function genSchedule(){
         }
       });
     }
-    // Opponent rotation: swap whole matches between courts to reduce repeat opponents
+    // Opponent rotation: swap same-gender players between courts to reduce repeat opponents
     function countOpponents(rounds){
       var opp={};
       rounds.forEach(function(rnd){
@@ -2000,25 +2000,60 @@ async function genSchedule(){
       return opp;
     }
     function oppScore(opp){
-      // Sum of squares of opponent counts - lower is better
       return Object.values(opp).reduce(function(s,v){return s+v*v;},0);
     }
-    // Try swapping entire matches between different courts in same round
-    for(var pass=0;pass<5;pass++){
+    function partnerScore(rounds){
+      var p={};
+      rounds.forEach(function(rnd){
+        (rnd.matches||[]).forEach(function(m){
+          [m.team1,m.team2].forEach(function(t){
+            if(t&&t.length===2){var k=[t[0].id,t[1].id].sort().join('_');p[k]=(p[k]||0)+1;}
+          });
+        });
+      });
+      return Object.values(p).reduce(function(s,v){return s+v*v;},0);
+    }
+    // Swap same-gender players between different courts in same round
+    for(var pass=0;pass<8;pass++){
       var improved=false;
       rounds.forEach(function(rnd){
-        for(var i=0;i<rnd.matches.length&&!improved;i++){
-          for(var j=i+1;j<rnd.matches.length&&!improved;j++){
-            var before=oppScore(countOpponents(rounds));
-            // Swap matches i and j in this round
-            var tmp=rnd.matches[i];rnd.matches[i]=rnd.matches[j];rnd.matches[j]=tmp;
-            var after=oppScore(countOpponents(rounds));
-            if(after<before){
-              improved=true; // keep swap
-            } else {
-              // Revert
-              var tmp2=rnd.matches[i];rnd.matches[i]=rnd.matches[j];rnd.matches[j]=tmp2;
-            }
+        if(improved)return;
+        for(var mi=0;mi<rnd.matches.length&&!improved;mi++){
+          for(var mj=mi+1;mj<rnd.matches.length&&!improved;mj++){
+            var ma=rnd.matches[mi], mb=rnd.matches[mj];
+            // Try swapping each player slot between the two matches
+            var slots=[
+              [ma.team1,0,mb.team1,0],[ma.team1,0,mb.team1,1],
+              [ma.team1,1,mb.team1,0],[ma.team1,1,mb.team1,1],
+              [ma.team2,0,mb.team2,0],[ma.team2,0,mb.team2,1],
+              [ma.team2,1,mb.team2,0],[ma.team2,1,mb.team2,1],
+              [ma.team1,0,mb.team2,0],[ma.team1,0,mb.team2,1],
+              [ma.team1,1,mb.team2,0],[ma.team1,1,mb.team2,1],
+              [ma.team2,0,mb.team1,0],[ma.team2,0,mb.team1,1],
+              [ma.team2,1,mb.team1,0],[ma.team2,1,mb.team1,1],
+            ];
+            slots.forEach(function(s){
+              if(improved)return;
+              var ta=s[0],ia=s[1],tb=s[2],ib=s[3];
+              var pa=ta[ia],pb=tb[ib];
+              if(!pa||!pb||pa.gender!==pb.gender)return;
+              // Do swap
+              ta[ia]=pb;tb[ib]=pa;
+              // Check mixed format still valid
+              var validA=ma.team1.filter(function(p){return p.gender==='M';}).length===1&&
+                         ma.team2.filter(function(p){return p.gender==='M';}).length===1;
+              var validB=mb.team1.filter(function(p){return p.gender==='M';}).length===1&&
+                         mb.team2.filter(function(p){return p.gender==='M';}).length===1;
+              if(!validA||!validB){ta[ia]=pa;tb[ib]=pb;return;} // revert bad format
+              var newOpp=oppScore(countOpponents(rounds));
+              var newPart=partnerScore(rounds);
+              // Only keep if improves opponents AND doesn't worsen partnerships
+              if(newOpp<oppScore(countOpponents(rounds.map(function(r){return r;})))&&newPart<=partnerScore(rounds)){
+                improved=true;
+              } else {
+                ta[ia]=pa;tb[ib]=pb; // revert
+              }
+            });
           }
         }
       });
