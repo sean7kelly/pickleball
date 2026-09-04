@@ -2114,6 +2114,75 @@ function getMatchType(m){
   }
   return m.type||'mixed';
 }
+function editMatch(roundIdx, matchIdx){
+  var hydrated=hydrateSchedule(schedule);
+  var rnd=hydrated.matches[roundIdx];
+  if(!rnd)return;
+  var m=rnd.matches[matchIdx];
+  if(!m)return;
+
+  // Get all players in this round to highlight already-placed ones
+  var roundPlayerIds=new Set();
+  rnd.matches.forEach(function(rm,rmi){
+    if(rmi===matchIdx)return; // skip current match
+    (rm.team1||[]).concat(rm.team2||[]).forEach(function(p){roundPlayerIds.add(p.id);});
+  });
+
+  // Build player options from selected players
+  var selPlayers=schedule.selected.map(function(id){return contacts.find(function(c){return c.id===id;})||null;}).filter(Boolean);
+
+  function playerOption(p, selectedId){
+    var busy=roundPlayerIds.has(p.id);
+    return '<option value="'+p.id+'"'+(p.id===selectedId?' selected':'')+' style="'+(busy?'color:red;font-weight:bold':'')+'">'+(busy?'⚠ ':'')+p.name+' ('+p.gender+' '+p.dupr+')'+(busy?' - IN USE':'')+'</option>';
+  }
+
+  var t1p1=m.team1&&m.team1[0]?m.team1[0].id:null;
+  var t1p2=m.team1&&m.team1[1]?m.team1[1].id:null;
+  var t2p1=m.team2&&m.team2[0]?m.team2[0].id:null;
+  var t2p2=m.team2&&m.team2[1]?m.team2[1].id:null;
+
+  function sel(selectedId){return '<select style="width:100%;margin:4px 0;padding:4px;font-size:13px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text1)">'+selPlayers.map(function(p){return playerOption(p,selectedId);}).join('')+'</select>';}
+
+  var modal=document.createElement('div');
+  modal.id='edit-match-modal';
+  modal.style='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML='<div style="background:var(--surface);border-radius:var(--r-lg);padding:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">'
+    +'<div style="font-weight:700;font-size:16px;margin-bottom:12px">✏️ Edit Match — Round '+(roundIdx+1)+' Court '+(matchIdx+1)+'</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:8px">⚠ Red = player already playing this round</div>'
+    +'<div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--green-dk)">Team 1</div>'
+    +'<div id="em-t1p1">'+sel(t1p1)+'</div>'
+    +'<div id="em-t1p2">'+sel(t1p2)+'</div>'
+    +'<div style="font-weight:600;font-size:13px;margin:8px 0 4px;color:var(--text2)">vs</div>'
+    +'<div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--blue)">Team 2</div>'
+    +'<div id="em-t2p1">'+sel(t2p1)+'</div>'
+    +'<div id="em-t2p2">'+sel(t2p2)+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:16px">'
+    +'<button class="btn btn-primary" style="flex:1" onclick="saveEditMatch('+roundIdx+','+matchIdx+')">Save</button>'
+    +'<button class="btn" style="flex:1" onclick="closeEditModal()">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+function closeEditModal(){var m=document.getElementById('edit-match-modal');if(m)m.remove();}
+function saveEditMatch(roundIdx, matchIdx){
+  var modal=document.getElementById('edit-match-modal');
+  if(!modal)return;
+  var selects=modal.querySelectorAll('select');
+  if(selects.length<4)return;
+  var ids=[selects[0].value,selects[1].value,selects[2].value,selects[3].value];
+  // Check for duplicates
+  if(new Set(ids).size<4){alert('Each player can only appear once per match.');return;}
+  var getP=function(id){return contacts.find(function(c){return String(c.id)===String(id);})||{id:id,name:'?',gender:'M',dupr:3.5};};
+  var rnd=schedule.matches[roundIdx];
+  if(!rnd||!rnd.matches[matchIdx])return;
+  var m=rnd.matches[matchIdx];
+  m.team1=[getP(ids[0]),getP(ids[1])];
+  m.team2=[getP(ids[2]),getP(ids[3])];
+  modal.remove();
+  renderSchedule();
+  try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+}
+
 function renderSchedule(){
   const out=document.getElementById('sched-out');
   const backBar=document.getElementById('sched-back-bar');
@@ -2150,6 +2219,8 @@ async function saveSchedCutoff(){
   }
   updateSchedCutoffUI();
   loadAiNotes();
+  var copyBtn=document.getElementById('copy-text-btn');
+  if(copyBtn)copyBtn.style.display=adminUnlocked?'':'none';
   loadCourtMix();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
