@@ -1984,7 +1984,8 @@ async function genSchedule(){
         }
       });
     }
-    // Cross-round optimizer: swap same-gender players between different rounds
+    // Opponent optimizer: only swap whole teams between courts in same round
+    // Swapping team1 of match A with team1 of match B preserves all partnerships
     function countOpponents(rounds){
       var opp={};
       rounds.forEach(function(rnd){
@@ -2000,53 +2001,49 @@ async function genSchedule(){
       return opp;
     }
     function oppScore(opp){
-      return Object.values(opp).reduce(function(s,v){return s+(v>2?(v-2)*10:0);},0);
+      return Object.values(opp).reduce(function(s,v){return s+v*v;},0);
     }
-    function partnerScore(rounds){
-      var p={};
-      rounds.forEach(function(rnd){
-        (rnd.matches||[]).forEach(function(m){
-          [m.team1,m.team2].forEach(function(t){
-            if(t&&t.length===2){var k=[t[0].id,t[1].id].sort().join('_');p[k]=(p[k]||0)+1;}
-          });
-        });
-      });
-      return Object.values(p).reduce(function(s,v){return s+(v>1?(v-1)*10:0);},0);
-    }
-    function isValidMixed(m){
-      var t1m=(m.team1||[]).filter(function(p){return p.gender==='M';}).length;
-      var t2m=(m.team2||[]).filter(function(p){return p.gender==='M';}).length;
-      if(m.type==='mixed')return t1m===1&&t2m===1;
-      return true;
-    }
-    var beforeOpp=oppScore(countOpponents(rounds));
-    var beforePart=partnerScore(rounds);
-    for(var pass=0;pass<20;pass++){
+    var bestOpp=oppScore(countOpponents(rounds));
+    for(var pass=0;pass<30;pass++){
       var improved=false;
-      for(var ri=0;ri<rounds.length&&!improved;ri++){
-        for(var rj=ri+1;rj<rounds.length&&!improved;rj++){
-          for(var mi=0;mi<rounds[ri].matches.length&&!improved;mi++){
-            for(var mj=0;mj<rounds[rj].matches.length&&!improved;mj++){
-              var ma=rounds[ri].matches[mi];
-              var mb=rounds[rj].matches[mj];
-              var slots=[[ma.team1,0,mb.team1,0],[ma.team1,0,mb.team1,1],[ma.team1,1,mb.team1,0],[ma.team1,1,mb.team1,1],[ma.team2,0,mb.team2,0],[ma.team2,0,mb.team2,1],[ma.team2,1,mb.team2,0],[ma.team2,1,mb.team2,1],[ma.team1,0,mb.team2,0],[ma.team1,1,mb.team2,1],[ma.team2,0,mb.team1,0],[ma.team2,1,mb.team1,1]];
-              slots.forEach(function(s){
-                if(improved)return;
-                var ta=s[0],ia=s[1],tb=s[2],ib=s[3];
-                var pa=ta[ia],pb=tb[ib];
-                if(!pa||!pb||pa.gender!==pb.gender||pa.id===pb.id)return;
-                ta[ia]=pb;tb[ib]=pa;
-                if(!isValidMixed(ma)||!isValidMixed(mb)){ta[ia]=pa;tb[ib]=pb;return;}
-                var newOpp=oppScore(countOpponents(rounds));
-                var newPart=partnerScore(rounds);
-                if(newOpp<beforeOpp||(newOpp===beforeOpp&&newPart<beforePart)){
-                  beforeOpp=newOpp;beforePart=newPart;improved=true;
-                } else {ta[ia]=pa;tb[ib]=pb;}
-              });
-            }
+      rounds.forEach(function(rnd){
+        if(improved)return;
+        for(var i=0;i<rnd.matches.length;i++){
+          for(var j=i+1;j<rnd.matches.length;j++){
+            var ma=rnd.matches[i], mb=rnd.matches[j];
+            // Only swap if same type
+            if(ma.type!==mb.type)continue;
+            // Try swapping team1 of ma with team1 of mb (keeps all partnerships intact)
+            var tmp=ma.team1; ma.team1=mb.team1; mb.team1=tmp;
+            var score=oppScore(countOpponents(rounds));
+            if(score<bestOpp){bestOpp=score;improved=true;}
+            else{var tmp2=ma.team1;ma.team1=mb.team1;mb.team1=tmp2;}
+            if(improved)break;
+            // Try swapping team2 of ma with team2 of mb
+            var tmp3=ma.team2; ma.team2=mb.team2; mb.team2=tmp3;
+            var score2=oppScore(countOpponents(rounds));
+            if(score2<bestOpp){bestOpp=score2;improved=true;}
+            else{var tmp4=ma.team2;ma.team2=mb.team2;mb.team2=tmp4;}
+            if(improved)break;
+            // Try swapping team1 of ma with team2 of mb (only for same gender type)
+            var tmp5=ma.team1; ma.team1=mb.team2; mb.team2=tmp5;
+            // Validate mixed format
+            var t1mA=(ma.team1||[]).filter(function(p){return p.gender==='M';}).length;
+            var t2mA=(ma.team2||[]).filter(function(p){return p.gender==='M';}).length;
+            var t1mB=(mb.team1||[]).filter(function(p){return p.gender==='M';}).length;
+            var t2mB=(mb.team2||[]).filter(function(p){return p.gender==='M';}).length;
+            var validA=ma.type!=='mixed'||(t1mA===1&&t2mA===1);
+            var validB=mb.type!=='mixed'||(t1mB===1&&t2mB===1);
+            if(validA&&validB){
+              var score3=oppScore(countOpponents(rounds));
+              if(score3<bestOpp){bestOpp=score3;improved=true;}
+              else{var tmp6=ma.team1;ma.team1=mb.team2;mb.team2=tmp6;}
+            } else {var tmp7=ma.team1;ma.team1=mb.team2;mb.team2=tmp7;}
+            if(improved)break;
           }
+          if(improved)break;
         }
-      }
+      });
       if(!improved)break;
     }
         schedule.matches=rounds;
