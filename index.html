@@ -1989,6 +1989,57 @@ async function genSchedule(){
       });
     }
 
+    // Enforce forced pairs exactly N times - break up excess occurrences
+    if(usePairs&&usePairs.length){
+      usePairs.forEach(function(fp){
+        var maxRounds=fp.rounds||1;
+        var p1id=String(fp.p1), p2id=String(fp.p2);
+        var pairRounds=[];
+        rounds.forEach(function(rnd,ri){
+          rnd.matches.forEach(function(m){
+            var ids=(m.team1||[]).concat(m.team2||[]).map(function(p){return String(p.id);});
+            var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
+            var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
+            var inT1=t1ids.includes(p1id)&&t1ids.includes(p2id);
+            var inT2=t2ids.includes(p1id)&&t2ids.includes(p2id);
+            if(inT1||inT2)pairRounds.push({ri:ri,m:m,inT1:inT1});
+          });
+        });
+        // Remove excess occurrences (keep first maxRounds, break up the rest)
+        if(pairRounds.length>maxRounds){
+          pairRounds.slice(maxRounds).forEach(function(entry){
+            var m=entry.m;
+            var team=entry.inT1?m.team1:m.team2;
+            var other=entry.inT1?m.team2:m.team1;
+            // Swap one player to break the pair
+            if(other.length>=1&&team.length>=1){
+              var isMixed=(getMatchType(m)==='mixed');
+              var swapped=false;
+              [0,1].forEach(function(ti){
+                if(swapped)return;
+                [0,1].forEach(function(oi){
+                  if(swapped)return;
+                  var newTeam=team.slice();newTeam[ti]=other[oi];
+                  var newOther=other.slice();newOther[oi]=team[ti];
+                  if(isMixed){
+                    var mT=newTeam.filter(function(p){return p.gender==='M';}).length;
+                    var mO=newOther.filter(function(p){return p.gender==='M';}).length;
+                    if(mT!==1||mO!==1)return;
+                  }
+                  // Make sure we broke the pair
+                  var newIds=newTeam.map(function(p){return String(p.id);});
+                  if(!newIds.includes(p1id)||!newIds.includes(p2id)){
+                    if(entry.inT1){m.team1=newTeam;m.team2=newOther;}
+                    else{m.team2=newTeam;m.team1=newOther;}
+                    swapped=true;
+                  }
+                });
+              });
+            }
+          });
+        }
+      });
+    }
     schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
