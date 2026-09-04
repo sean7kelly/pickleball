@@ -2178,6 +2178,31 @@ function updateSchedCutoffUI(){
   }
 }
 async function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+function copyScheduleText(){
+  if(!schedule||!schedule.matches||!schedule.matches.length){alert('No schedule to copy.');return;}
+  var hydrated=hydrateSchedule(schedule);
+  var text='';
+  hydrated.matches.forEach(function(rnd){
+    text+='ROUND '+rnd.round+'\n';
+    (rnd.matches||[]).forEach(function(m,i){
+      var type=getMatchType(m)==='mens'?"Men's":getMatchType(m)==='womens'?"Women's":"Mixed";
+      var t1=(m.team1||[]).map(function(p){return p.name+' DUPR '+(p.dupr||'?');}).join(' / ');
+      var t2=(m.team2||[]).map(function(p){return p.name+' DUPR '+(p.dupr||'?');}).join(' / ');
+      text+='Court '+(i+1)+' '+type+'\n'+t1+' vs '+t2+'\n';
+    });
+    text+='\n';
+  });
+  navigator.clipboard.writeText(text).then(function(){
+    alert('Schedule copied to clipboard!');
+  }).catch(function(){
+    // Fallback
+    var ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    alert('Schedule copied!');
+  });
+}
+
 function shareSchedule(){
   if(!schedule||!schedule.generated){alert('Generate a schedule first.');return;}
   var short={mixed:'Mixed',mens:"Men's",womens:"Women's"};
