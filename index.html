@@ -2189,6 +2189,8 @@ function renderSchedule(){
   const backBar=document.getElementById('sched-back-bar');
   const viewName=document.getElementById('sched-view-name');
   if(schedule&&backBar){backBar.style.display='flex';backBar.style.alignItems='center';}
+  var actionBar=document.getElementById('sched-action-bar');
+  if(actionBar)actionBar.style.display=schedule?'flex':'none';
   if(!schedule&&backBar){backBar.style.display='none';}
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
   if(!schedule||!schedule.generated||!schedule.matches.length){out.innerHTML='<div class="empty"><div class="ei">📅</div>'+(!schedule?'Select a schedule to view it.':'Select players and Generate — or mark people In from Contacts.')+'</div>';return;}
@@ -2221,7 +2223,7 @@ async function saveSchedCutoff(){
   updateSchedCutoffUI();
   loadAiNotes();
   var copyBtn=document.getElementById('copy-text-btn');
-  if(copyBtn)copyBtn.style.display=adminUnlocked?'':'none';
+  if(copyBtn)copyBtn.style.display=adminUnlocked?'inline-flex':'none';
   loadCourtMix();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
