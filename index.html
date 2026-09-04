@@ -1872,7 +1872,7 @@ async function genSchedule(){
     var resp=await fetch('/.netlify/functions/generate-schedule',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({max_tokens:3000,system:"SUNDAY PICKLEBALL GLOBAL SCHEDULE OPTIMIZER\n\nROLE: You are a pickleball schedule optimization engine. Generate the best complete multi-round schedule. Optimize the ENTIRE SESSION globally \u2014 not one round at a time.\n\nPRIMARY GOALS (in order): 1) Valid schedule. 2) Maximize partner variety. 3) Maximize opponent variety. 4) Maximize player exposure. 5) DUPR balance.\n\n==================================================\nA. HARD CONSTRAINTS \u2014 NEVER VIOLATE\n==================================================\n\n1. ROUND VALIDITY\n- Each player appears AT MOST ONCE per round.\n- Every game has exactly 4 UNIQUE players.\n- NEVER place a player on two courts in the same round.\n- NEVER place a player on both teams in the same game.\n- Never more games than available courts.\n\n2. FIXED PARTNERS: Honor exactly as supplied (exact count required).\n\n3. GAME FORMAT\n- For MIXED matches: EVERY team must have exactly 1 male + 1 female. team1=[M,F] and team2=[M,F]. NEVER put 2 males or 2 females on the same team. Example WRONG: team1=[M,M] team2=[F,F]. Example RIGHT: team1=[M,F] team2=[M,F].\n- Gender doubles: mixed vs mixed, women vs women, or men vs men only.\n\n4. RESTS: Distribute evenly if needed. No rests if everyone fits on courts.\n\n==================================================\nB. OPTIMIZATION PRIORITIES (lexicographic)\n==================================================\n\nP1 PARTNER DIVERSITY (HIGHEST PRIORITY): Every player must have a DIFFERENT partner every round. With 12 men and 12 women, there is NEVER a valid reason to repeat a partnership. A repeated partnership is a failure \u2014 fix it even if DUPR suffers.\nP2 OPPONENT DIVERSITY: Each pair opposes 1-2 times ideally. Minimize 3+ and 4+ repeats.\nP3 PLAYER EXPOSURE: Maximize unique players encountered (partner OR opponent).\nP4 DUPR: |Team1_sum - Team2_sum|. Target \u22640.40. Hard limit 0.70. DUPR is the LOWEST priority \u2014 never repeat a partner just to improve DUPR.\n\n==================================================\nC. MANDATORY SELF-CHECK before returning\n==================================================\n\nFor EVERY round verify:\n- No player ID appears more than once\n- Every game has exactly 4 unique players\n- Every player appears exactly once (playing or sitting)\n- Fixed Partners honored exactly\n- Game formats valid\n\nRepair any violation before returning.\n\n==================================================\nD. OUTPUT: JSON only, no other text\n==================================================\n\n{\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"P1\",\"P2\"],\"team2\":[\"P3\",\"P4\"]}],\"sitters\":[]}],\"warnings\":[]}",messages:[{role:'user',content:userPrompt}]})
+      body:JSON.stringify({max_tokens:3000,system:"You are a pickleball schedule optimization engine. Generate the optimal schedule for the players provided.\n\nHARD RULES - NEVER VIOLATE:\n1. Each player appears EXACTLY ONCE per round (playing or sitting)\n2. Every match has exactly 4 UNIQUE players\n3. NEVER put the same player on two courts in the same round\n4. For MIXED matches: team1 must have exactly 1M+1F, team2 must have exactly 1M+1F\n\nOPTIMIZATION GOALS (in order of priority):\n1. PARTNER VARIETY: Every player must have a DIFFERENT partner every round. Track all partnerships across all rounds. A repeated partnership is a failure.\n2. OPPONENT VARIETY: Actively distribute opponents. No pair should face each other more than 2-3 times. Specifically: after assigning each round, check if any two players have already faced each other that round's opponents - if so, reassign to create variety.\n3. PLAYER EXPOSURE: Maximize unique players each person encounters.\n4. DUPR BALANCE: |Team1_total - Team2_total| should be \u22640.70. Never sacrifice goals 1-2 for DUPR.\n\nCRITICAL: Globally optimize ALL rounds together. Do not assign round by round. Consider the full session when making assignments so men are not always facing the same opponents.\n\nSELF-CHECK before returning:\n- List all partnerships used - fix any repeat\n- List opponent pairs meeting 3+ times - fix by swapping between courts\n- Verify every player appears exactly once per round\n\nReturn ONLY compact JSON: {\"rounds\":[{\"round\":1,\"matches\":[{\"type\":\"mixed\",\"team1\":[\"P1\",\"P2\"],\"team2\":[\"P3\",\"P4\"]}],\"sitters\":[]}],\"warnings\":[]}",messages:[{role:'user',content:userPrompt}]})
     });
     var rawText=await resp.text();
     var data;
@@ -1982,58 +1982,6 @@ async function genSchedule(){
             }
           });
         }
-      });
-    }
-    // Fix opponent clustering: swap players between courts when same pair faces 3+ times
-    for(var swapPass=0;swapPass<3;swapPass++){
-      var oppCount={};
-      rounds.forEach(function(rnd){
-        (rnd.matches||[]).forEach(function(m){
-          (m.team1||[]).forEach(function(a){
-            (m.team2||[]).forEach(function(b){
-              var k=[a.id,b.id].sort().join('_');
-              oppCount[k]=(oppCount[k]||0)+1;
-            });
-          });
-        });
-      });
-      // Find worst pair
-      var worstKey=null,worstCount=0;
-      Object.keys(oppCount).forEach(function(k){if(oppCount[k]>worstCount){worstCount=oppCount[k];worstKey=k;}});
-      if(worstCount<=3)break;
-      var ids=worstKey.split('_');
-      var p1id=ids[0],p2id=ids[1];
-      // Find a round where they face each other and try swapping one with another court
-      var fixed=false;
-      rounds.forEach(function(rnd){
-        if(fixed)return;
-        var m1=null,m2=null;
-        rnd.matches.forEach(function(m){
-          var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
-          var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
-          if((t1ids.includes(p1id)&&t2ids.includes(p2id))||(t1ids.includes(p2id)&&t2ids.includes(p1id)))m1=m;
-        });
-        if(!m1)return;
-        // Try swapping a player from m1 with another court
-        rnd.matches.forEach(function(m){
-          if(fixed||m===m1)return;
-          var isMixed=(getMatchType(m)==='mixed'&&getMatchType(m1)==='mixed');
-          // Try swapping team1[0] of m1 with team1[0] of m
-          [[0,0],[0,1],[1,0],[1,1]].forEach(function(pair){
-            if(fixed)return;
-            var i=pair[0],j=pair[1];
-            var pa=m1.team1[i],pb=m.team1[j];
-            if(!pa||!pb)return;
-            if(isMixed&&pa.gender!==pb.gender)return;
-            // Check this swap doesn't create a repeated partnership
-            var newM1T1=m1.team1.slice();newM1T1[i]=pb;
-            var newMT1=m.team1.slice();newMT1[j]=pa;
-            var pk1=[newM1T1[0].id,newM1T1[1].id].sort().join('_');
-            var pk2=[newMT1[0].id,newMT1[1].id].sort().join('_');
-            // Simple check - just do it and improve clustering
-            m1.team1=newM1T1;m.team1=newMT1;fixed=true;
-          });
-        });
       });
     }
     schedule.matches=rounds;
