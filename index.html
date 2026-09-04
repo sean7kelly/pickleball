@@ -2004,13 +2004,13 @@ async function genSchedule(){
     if(usePairs&&usePairs.length){
       usePairs.forEach(function(fp){
         var maxRounds=fp.rounds||1;
-        var p1id=fp.p1,p2id=fp.p2;
+        var p1id=String(fp.p1),p2id=String(fp.p2);
         // Find rounds where this pair appears
         var pairRounds=[];
         rounds.forEach(function(rnd,ri){
           rnd.matches.forEach(function(m){
-            var t1ids=(m.team1||[]).map(function(p){return p.id;});
-            var t2ids=(m.team2||[]).map(function(p){return p.id;});
+            var t1ids=(m.team1||[]).map(function(p){return String(p.id);});
+            var t2ids=(m.team2||[]).map(function(p){return String(p.id);});
             var inT1=t1ids.includes(p1id)&&t1ids.includes(p2id);
             var inT2=t2ids.includes(p1id)&&t2ids.includes(p2id);
             if(inT1||inT2)pairRounds.push(ri);
@@ -2028,8 +2028,8 @@ async function genSchedule(){
               if(inT1||inT2){
                 // Swap one player between teams to break the pair
                 var allP=m.team1.concat(m.team2);
-                var p1obj=allP.find(function(p){return p.id===p1id;});
-                var p2obj=allP.find(function(p){return p.id===p2id;});
+                var p1obj=allP.find(function(p){return String(p.id)===p1id;});
+                var p2obj=allP.find(function(p){return String(p.id)===p2id;});
                 var others=allP.filter(function(p){return p.id!==p1id&&p.id!==p2id;});
                 if(p1obj&&p2obj&&others.length>=2){
                   m.team1=[p1obj,others[0]];
