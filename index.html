@@ -1984,6 +1984,46 @@ async function genSchedule(){
         }
       });
     }
+    // Opponent rotation: swap whole matches between courts to reduce repeat opponents
+    function countOpponents(rounds){
+      var opp={};
+      rounds.forEach(function(rnd){
+        (rnd.matches||[]).forEach(function(m){
+          (m.team1||[]).forEach(function(a){
+            (m.team2||[]).forEach(function(b){
+              var k=[a.id,b.id].sort().join('_');
+              opp[k]=(opp[k]||0)+1;
+            });
+          });
+        });
+      });
+      return opp;
+    }
+    function oppScore(opp){
+      // Sum of squares of opponent counts - lower is better
+      return Object.values(opp).reduce(function(s,v){return s+v*v;},0);
+    }
+    // Try swapping entire matches between different courts in same round
+    for(var pass=0;pass<5;pass++){
+      var improved=false;
+      rounds.forEach(function(rnd){
+        for(var i=0;i<rnd.matches.length&&!improved;i++){
+          for(var j=i+1;j<rnd.matches.length&&!improved;j++){
+            var before=oppScore(countOpponents(rounds));
+            // Swap matches i and j in this round
+            var tmp=rnd.matches[i];rnd.matches[i]=rnd.matches[j];rnd.matches[j]=tmp;
+            var after=oppScore(countOpponents(rounds));
+            if(after<before){
+              improved=true; // keep swap
+            } else {
+              // Revert
+              var tmp2=rnd.matches[i];rnd.matches[i]=rnd.matches[j];rnd.matches[j]=tmp2;
+            }
+          }
+        }
+      });
+      if(!improved)break;
+    }
     schedule.matches=rounds;
     schedule.generated=true;
     schedule.date=schedule.date||new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
