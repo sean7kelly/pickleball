@@ -2122,7 +2122,7 @@ function renderSchedule(){
   if(schedule&&viewName){viewName.textContent=schedule.name+(schedule.date?' — '+schedule.date:'');}
   if(!schedule||!schedule.generated||!schedule.matches.length){out.innerHTML='<div class="empty"><div class="ei">📅</div>'+(!schedule?'Select a schedule to view it.':'Select players and Generate — or mark people In from Contacts.')+'</div>';return;}
   const s=hydrateSchedule(schedule);
-  var adminBar=adminUnlocked?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn btn-sm" onclick="copyScheduleText()">📄 Copy Text</button><button class="btn btn-sm btn-danger" onclick="resetSchedule()">🗑 Clear Schedule</button></div>':'';
+  var adminBar=adminUnlocked?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn btn-sm" onclick="copyScheduleText()">📄 Copy Text</button><button class="btn btn-sm" onclick="analyzeScheduleInApp()">📊 Analyze</button><button class="btn btn-sm btn-danger" onclick="resetSchedule()">🗑 Clear Schedule</button></div>':'';
   out.innerHTML=adminBar+s.matches.map(round=>`<div class="round-block"><div class="round-lbl">Round ${round.round}</div>${round.matches.map((m,mi)=>`<div class="mrow ${m.recorded?'recorded':''}" id="mr-${m.id}"><div class="mtop"><span class="clbl">Court ${mi+1}</span><span class="badge ${typeBadge[getMatchType(m)]}">${typeLabel[getMatchType(m)]}</span></div><div class="tgrid-m"><div>${m.team1.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div><div class="vslbl">vs</div><div class="tr">${m.team2.map(p=>`<div class="pnm">${p.name}</div><div class="prt">DUPR ${p.dupr.toFixed(2)}</div>`).join('')}</div></div><div class="score-row no-print"><input type="number" class="sin" id="s1-${m.id}" value="${m.score1}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',this.value,document.getElementById('s2-${m.id}').value)"/><span class="ssep">–</span><input type="number" class="sin" id="s2-${m.id}" value="${m.score2}" placeholder="0" min="0" max="15" onchange="saveScore('${m.id}',document.getElementById('s1-${m.id}').value,this.value)"/><button class="btn btn-sm ${m.recorded?'btn-teal':'btn-primary'}" onclick="recordResult('${m.id}')">${m.recorded?'✓ Saved':'✔ Record'}</button></div></div>`).join('')}${round.sitters?.length?`<div class="sitout">⏸ Sitting out: ${round.sitters.map(p=>p&&p.name?p.name:(contacts.find(c=>c.id===p||c.id===+p)||{name:'?'}).name).join(', ')}</div>`:''}</div>`).join('');
 }
 async function saveScore(mid,s1,s2){for(const rnd of(schedule?schedule.matches:[])){const m=rnd.matches.find(m=>m.id===mid);if(m){m.score1=s1;m.score2=s2;}}try{if(schedule)await api('schedules/save',slimSchedule(schedule));}catch(e){}}
@@ -2180,6 +2180,92 @@ function updateSchedCutoffUI(){
   }
 }
 async function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confirm('Clear this schedule?'))return;schedule.selected=[];schedule.matches=[];schedule.generated=false;schedule.date='';renderToggles();renderSchedule();document.getElementById('sched-alert').innerHTML='';try{setSyncing();await api('schedules/save',slimSchedule(schedule));setSynced();}catch(e){setSyncErr();}}
+async function analyzeScheduleInApp(){
+  if(!schedule||!schedule.matches||!schedule.matches.length){alert('No schedule.');return;}
+  var hydrated=hydrateSchedule(schedule);
+  // Build compact match data
+  var partnerCount={};
+  var opponentCount={};
+  hydrated.matches.forEach(function(rnd){
+    (rnd.matches||[]).forEach(function(m){
+      var all=(m.team1||[]).concat(m.team2||[]);
+      [m.team1,m.team2].forEach(function(team){
+        if(team&&team.length===2){
+          var pk=[team[0].name,team[1].name].sort().join('+');
+          partnerCount[pk]=(partnerCount[pk]||0)+1;
+        }
+      });
+      (m.team1||[]).forEach(function(a){
+        (m.team2||[]).forEach(function(b){
+          var ok=[a.name,b.name].sort().join(' vs ');
+          opponentCount[ok]=(opponentCount[ok]||0)+1;
+        });
+      });
+    });
+  });
+  var repeatedPartners=Object.entries(partnerCount).filter(function(e){return e[1]>=2;}).sort(function(a,b){return b[1]-a[1];});
+  var repeatedOpponents=Object.entries(opponentCount).filter(function(e){return e[1]>=4;}).sort(function(a,b){return b[1]-a[1];});
+  var playerExp={};
+  contacts.forEach(function(c){playerExp[c.name]={partners:new Set(),opponents:new Set()};});
+  hydrated.matches.forEach(function(rnd){
+    (rnd.matches||[]).forEach(function(m){
+      [m.team1,m.team2].forEach(function(team,ti){
+        var other=ti===0?m.team2:m.team1;
+        (team||[]).forEach(function(p){
+          var e=playerExp[p.name];
+          if(!e)return;
+          (team||[]).forEach(function(q){if(q.name!==p.name)e.partners.add(q.name);});
+          (other||[]).forEach(function(q){e.opponents.add(q.name);});
+        });
+      });
+    });
+  });
+  var exposures=Object.entries(playerExp).map(function(e){return {name:e[0],total:e[1].partners.size+e[1].opponents.size,partners:e[1].partners.size,opponents:e[1].opponents.size};}).sort(function(a,b){return a.total-b.total;});
+  var minExp=exposures[0];
+  var avgExp=Math.round(exposures.reduce(function(s,e){return s+e.total;},0)/exposures.length*10)/10;
+  
+  var html='<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:12px">';
+  html+='<div style="font-weight:700;font-size:15px;margin-bottom:12px">📊 Schedule Analysis</div>';
+  
+  html+='<div style="font-size:13px;font-weight:600;margin-bottom:4px">Repeated Partnerships:</div>';
+  if(repeatedPartners.length===0){
+    html+='<div style="color:var(--green-dk);font-size:12px">✓ None!</div>';
+  } else {
+    repeatedPartners.forEach(function(e){
+      var color=e[1]>=3?'var(--red)':'var(--amber-tx)';
+      html+='<div style="font-size:12px;color:'+color+'">'+e[1]+'x: '+e[0]+'</div>';
+    });
+  }
+  
+  html+='<div style="font-size:13px;font-weight:600;margin-top:10px;margin-bottom:4px">Opponents 4+ times:</div>';
+  if(repeatedOpponents.length===0){
+    html+='<div style="color:var(--green-dk);font-size:12px">✓ None!</div>';
+  } else {
+    repeatedOpponents.forEach(function(e){
+      html+='<div style="font-size:12px;color:var(--red)">'+e[1]+'x: '+e[0]+'</div>';
+    });
+  }
+  
+  html+='<div style="font-size:13px;font-weight:600;margin-top:10px;margin-bottom:4px">Player Exposure:</div>';
+  html+='<div style="font-size:12px">Avg: '+avgExp+' | Min: '+minExp.total+' ('+minExp.name+')</div>';
+  exposures.slice(0,5).forEach(function(e){
+    var flag=e.total<13?'⚠️ ':'✓ ';
+    html+='<div style="font-size:11px;color:var(--text2)">'+flag+e.name+': '+e.partners+' partners, '+e.opponents+' opponents</div>';
+  });
+  
+  html+='</div>';
+  
+  // Insert before round 1
+  var out=document.getElementById('sched-out');
+  if(out){
+    var existing=out.innerHTML;
+    var insertAt=existing.indexOf('<div class="round-block">');
+    if(insertAt>=0){
+      out.innerHTML=existing.slice(0,insertAt)+html+existing.slice(insertAt);
+    }
+  }
+}
+
 function copyScheduleText(){
   if(!schedule||!schedule.matches||!schedule.matches.length){alert('No schedule to copy.');return;}
   var hydrated=hydrateSchedule(schedule);
