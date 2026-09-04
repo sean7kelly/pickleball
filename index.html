@@ -2022,6 +2022,8 @@ async function genSchedule(){
           for(var mj=mi+1;mj<rnd.matches.length&&!improved;mj++){
             var ma=rnd.matches[mi], mb=rnd.matches[mj];
             // Try swapping each player slot between the two matches
+            var beforeOpp=oppScore(countOpponents(rounds));
+            var beforePart=partnerScore(rounds);
             var slots=[
               [ma.team1,0,mb.team1,0],[ma.team1,0,mb.team1,1],
               [ma.team1,1,mb.team1,0],[ma.team1,1,mb.team1,1],
@@ -2047,8 +2049,9 @@ async function genSchedule(){
               if(!validA||!validB){ta[ia]=pa;tb[ib]=pb;return;} // revert bad format
               var newOpp=oppScore(countOpponents(rounds));
               var newPart=partnerScore(rounds);
-              // Only keep if improves opponents AND doesn't worsen partnerships
-              if(newOpp<oppScore(countOpponents(rounds.map(function(r){return r;})))&&newPart<=partnerScore(rounds)){
+              if(newOpp<beforeOpp&&newPart<=beforePart){
+                beforeOpp=newOpp;
+                beforePart=newPart;
                 improved=true;
               } else {
                 ta[ia]=pa;tb[ib]=pb; // revert
