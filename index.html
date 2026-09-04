@@ -2183,26 +2183,27 @@ async function resetSchedule(){if(!schedule)return;if(schedule.generated&&!confi
 function copyScheduleText(){
   if(!schedule||!schedule.matches||!schedule.matches.length){alert('No schedule to copy.');return;}
   var hydrated=hydrateSchedule(schedule);
-  var text='';
+  var lines=[];
   hydrated.matches.forEach(function(rnd){
-    text+='ROUND '+rnd.round+'\n';
+    lines.push('ROUND '+rnd.round);
     (rnd.matches||[]).forEach(function(m,i){
-      var type=getMatchType(m)==='mens'?"Men's":getMatchType(m)==='womens'?"Women's":"Mixed";
-      var t1=(m.team1||[]).map(function(p){return p.name+' DUPR '+(p.dupr||'?');}).join(' / ');
-      var t2=(m.team2||[]).map(function(p){return p.name+' DUPR '+(p.dupr||'?');}).join(' / ');
-      text+='Court '+(i+1)+' '+type+'\n'+t1+' vs '+t2+'\n';
+      var type=getMatchType(m)==='mens'?"Mens":getMatchType(m)==='womens'?"Womens":"Mixed";
+      var t1=(m.team1||[]).map(function(p){return p.name+' '+( p.dupr||'?');}).join(' / ');
+      var t2=(m.team2||[]).map(function(p){return p.name+' '+(p.dupr||'?');}).join(' / ');
+      lines.push('Court '+(i+1)+' '+type+': '+t1+' vs '+t2);
     });
-    text+='\n';
+    lines.push('');
   });
-  navigator.clipboard.writeText(text).then(function(){
-    alert('Schedule copied to clipboard!');
-  }).catch(function(){
-    // Fallback
-    var ta=document.createElement('textarea');
-    ta.value=text;document.body.appendChild(ta);ta.select();
-    document.execCommand('copy');document.body.removeChild(ta);
-    alert('Schedule copied!');
-  });
+  var text=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      alert('Copied! Now paste it in the chat.');
+    }).catch(function(){
+      prompt('Copy this text (select all, then copy):',text);
+    });
+  } else {
+    prompt('Copy this text (select all, then copy):',text);
+  }
 }
 
 function shareSchedule(){
