@@ -2012,13 +2012,15 @@ async function genSchedule(){
             {t1:[p[0],p[3]],t2:[p[1],p[2]]}
           ];
         }
-        var best=splits.reduce(function(a,b){
-          var da=Math.abs((a.t1[0].dupr+a.t1[1].dupr)-(a.t2[0].dupr+a.t2[1].dupr));
-          var db=Math.abs((b.t1[0].dupr+b.t1[1].dupr)-(b.t2[0].dupr+b.t2[1].dupr));
-          return db<da?b:a;
+        var current=splits[0];
+        var currentDiff=Math.abs((current.t1[0].dupr+current.t1[1].dupr)-(current.t2[0].dupr+current.t2[1].dupr));
+        // Only swap if current split is really bad (>1.0) and a much better split exists
+        splits.forEach(function(s){
+          var sd=Math.abs((s.t1[0].dupr+s.t1[1].dupr)-(s.t2[0].dupr+s.t2[1].dupr));
+          if(sd<currentDiff-0.30)current=s; // only swap if meaningfully better
         });
-        m.team1=best.t1;
-        m.team2=best.t2;
+        m.team1=current.t1;
+        m.team2=current.t2;
       });
     });
     schedule.matches=rounds;
