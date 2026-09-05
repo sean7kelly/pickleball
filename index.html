@@ -2214,6 +2214,8 @@ async function saveSchedCutoff(){
   loadAiNotes();
   var toolsBar=document.getElementById('sched-tools-bar');
   if(toolsBar)toolsBar.style.display=adminUnlocked&&schedule?'flex':'none';
+  var exportBar=document.getElementById('export-ids-bar');
+  if(exportBar)exportBar.style.display=adminUnlocked?'block':'none';
   loadCourtMix();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
 }
