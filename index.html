@@ -268,7 +268,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 <!-- CONTACTS TAB -->
 <div id="tab-contacts" class="section">
 
-  <div id="export-ids-bar" class="admin-only" style="margin-bottom:10px"><button class="btn btn-sm" onclick="var d=contacts.filter(function(c){return c.isPlayer;}).map(function(c){return c.id+':'+c.name;}).join('\n');prompt('Player IDs:',d)">📋 Export Player IDs</button></div>
+  <div id="export-ids-bar" class="admin-only" style="margin-bottom:10px"><button class="btn btn-sm" onclick="var d=contacts.map(function(c){return c.id+':'+c.name+(c.is_player?'*':'');}).join('\n');prompt('IDs (* = player):',d)">📋 Export Player IDs</button></div>
   <div class="card admin-only" id="add-contact-card">
     <div class="card-title">Add contact / player</div>
     <div class="form-row">
