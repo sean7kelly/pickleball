@@ -268,7 +268,10 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 <!-- CONTACTS TAB -->
 <div id="tab-contacts" class="section">
 
-  <div id="export-ids-bar" class="admin-only" style="margin-bottom:10px"><button class="btn btn-sm" onclick="var d=contacts.map(function(c){return c.id+':'+c.name+(c.is_player?'*':'');}).join('\n');navigator.clipboard.writeText(d).then(function(){alert('Copied '+contacts.length+' contacts to clipboard!');}).catch(function(){prompt('Copy this:',d);})">📋 Copy Player IDs</button></div>
+  <div id="export-ids-bar" class="admin-only" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-sm" onclick="var d=contacts.map(function(c){return c.id+':'+c.name+(c.is_player?'*':'');}).join('\n');navigator.clipboard.writeText(d).then(function(){alert('Copied '+contacts.length+' contacts to clipboard!');}).catch(function(){prompt('Copy this:',d);})">📋 Copy Player IDs</button>
+    <button class="btn btn-sm" onclick="updateAllDuprs()" id="update-all-duprs-btn">🔄 Update All DUPRs</button>
+  </div>
   <div class="card admin-only" id="add-contact-card">
     <div class="card-title">Add contact / player</div>
     <div class="form-row">
@@ -2172,6 +2175,39 @@ function saveEditMatch(roundIdx, matchIdx){
   modal.remove();
   renderSchedule();
   try{setSyncing();api('schedules/save',slimSchedule(schedule)).then(function(){setSynced();}).catch(function(){setSyncErr();});}catch(e){setSyncErr();}
+}
+
+async function updateAllDuprs(){
+  var btn=document.getElementById('update-all-duprs-btn');
+  if(btn)btn.disabled=true;
+  var players=contacts.filter(function(c){return c.dupr_url;});
+  var updated=0, failed=0;
+  for(var i=0;i<players.length;i++){
+    var c=players[i];
+    if(btn)btn.textContent='🔄 Updating '+c.name+'... ('+(i+1)+'/'+players.length+')';
+    try{
+      // Fetch DUPR page and parse rating
+      var resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(c.dupr_url));
+      if(!resp.ok)throw new Error('fetch failed');
+      var html=await resp.text();
+      // Parse DUPR rating from page - look for patterns like "4.15" near "DUPR"
+      var match=html.match(/"doubles_rating"\s*:\s*"?([\d.]+)"?/);
+      if(!match)match=html.match(/class="[^"]*rating[^"]*"[^>]*>([\d.]+)</i);
+      if(!match)match=html.match(/"rating"\s*:\s*([\d.]+)/);
+      if(match){
+        var newDupr=parseFloat(match[1]);
+        if(newDupr>2&&newDupr<7){
+          await api('contacts/update',{id:c.id,dupr:newDupr,dupr_updated:new Date().toISOString()});
+          c.dupr=newDupr;
+          updated++;
+        } else {failed++;}
+      } else {failed++;}
+    } catch(e){failed++;}
+    await new Promise(function(r){setTimeout(r,300);});
+  }
+  if(btn){btn.disabled=false;btn.textContent='🔄 Update All DUPRs';}
+  renderContacts();
+  alert('Done! Updated: '+updated+', Failed/skipped: '+failed);
 }
 
 function loadSep13Schedule(){
