@@ -2180,14 +2180,14 @@ function saveEditMatch(roundIdx, matchIdx){
 async function updateAllDuprs(){
   var btn=document.getElementById('update-all-duprs-btn');
   if(btn)btn.disabled=true;
-  var players=contacts.filter(function(c){return c.dupr_url;});
+  var players=contacts.filter(function(c){return c.duprUrl;});
   var updated=0, failed=0;
   for(var i=0;i<players.length;i++){
     var c=players[i];
     if(btn)btn.textContent='🔄 Updating '+c.name+'... ('+(i+1)+'/'+players.length+')';
     try{
       // Fetch DUPR page and parse rating
-      var resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(c.dupr_url));
+      var resp=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(c.duprUrl));
       if(!resp.ok)throw new Error('fetch failed');
       var html=await resp.text();
       // Parse DUPR rating from page - look for patterns like "4.15" near "DUPR"
