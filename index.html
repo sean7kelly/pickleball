@@ -269,7 +269,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:14px 0;}
 <div id="tab-contacts" class="section">
 
   <div id="export-ids-bar" class="admin-only" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn btn-sm" onclick="var d=contacts.map(function(c){return c.id+':'+c.name+(c.is_player?'*':'');}).join('\n');navigator.clipboard.writeText(d).then(function(){alert('Copied '+contacts.length+' contacts to clipboard!');}).catch(function(){prompt('Copy this:',d);})">📋 Copy Player IDs</button>
+    <button class="btn btn-sm" onclick="var d=contacts.map(function(c){return c.id+':'+c.name+':'+((c.dupr||0).toFixed(2))+(c.is_player?'*':'');}).join('\n');navigator.clipboard.writeText(d).then(function(){alert('Copied '+contacts.length+' contacts to clipboard!');}).catch(function(){prompt('Copy this:',d);})">📋 Copy Player IDs+DUPR</button>
     <button class="btn btn-sm" onclick="updateAllDuprs()" id="update-all-duprs-btn">🔄 Update All DUPRs</button>
   </div>
   <div class="card admin-only" id="add-contact-card">
